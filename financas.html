@@ -552,65 +552,225 @@ async function closeMonth(){
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-// ── AI (Gemini) ──
-const GEMINI_KEY='AQ.Ab8RN6LWNmaUwLFSZFpr0r-g_XUQr94HqUlKOow-bEcvZhVTtw';
+// ── AI LOCAL ──
 let aiHistory=[];
 
-function buildSystemPrompt(){
+function getFinancialContext(){
   const wb=getWeeklyBudget();
   const{start:ws,end:we}=getWeekBounds();
   const{start:ms,end:me}=getMonthBounds();
   const tw=expenses.filter(e=>{const d=new Date(e.date);return d>=ws&&d<=we;});
   const wt=tw.reduce((s,e)=>s+e.amount,0);
-  const mt=expenses.filter(e=>{const d=new Date(e.date);return d>=ms&&d<=me;}).reduce((s,e)=>s+e.amount,0);
+  const rem=Math.max(0,wb-wt);
+  const over=wt>wb;
+  const pct=wb>0?wt/wb:0;
+  const monthExp=expenses.filter(e=>{const d=new Date(e.date);return d>=ms&&d<=me;});
+  const mt=monthExp.reduce((s,e)=>s+e.amount,0);
   const ef=getEffectiveFixed();
   const tf=ef.reduce((s,f)=>s+f.effectiveAmount,0);
-  const modeInfo=settings.weekly_mode==='manual'?`Meta manual: ${fmt(settings.weekly_manual)}`:`Meta automática pela fórmula`;
-  return`Você é uma consultora financeira pessoal e direta de um casal brasileiro. Responda sempre em português, de forma curta e objetiva (máximo 3 parágrafos). Use emojis com moderação.
+  const semRestantes=Math.max(1,4-Math.floor((new Date().getDate()-1)/7));
+  const dispMes=Math.max(0,settings.income-tf-settings.reserve);
 
-SITUAÇÃO FINANCEIRA ATUAL:
-- Renda mensal: ${fmt(settings.income)}
-- Gastos fixos (mês): ${fmt(tf)} — ${ef.map(f=>f.name+': '+fmt(f.effectiveAmount)).join(', ')||'nenhum'}
-- Reserva: ${fmt(settings.reserve)}
-- Meta semanal: ${fmt(wb)} (${modeInfo})
-- Gasto no cartão esta semana: ${fmt(wt)} (${Math.round(wb>0?wt/wb*100:0)}% da meta)
-- Gasto no cartão este mês: ${fmt(mt)}
-- Semanas restantes no mês: ~${Math.max(1,4-Math.floor((new Date().getDate()-1)/7))}
+  // Category breakdown this week
+  const catTotals={};
+  tw.forEach(e=>{catTotals[e.category]=(catTotals[e.category]||0)+e.amount;});
+  const topCat=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
 
-Analise perguntas sobre gastos ou dê visão geral do mês. Seja honesta e direta.`;
+  // Weekly history
+  const semanas={};
+  expenses.forEach(e=>{
+    const d=new Date(e.date);d.setHours(0,0,0,0);
+    const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);
+    const mon=new Date(d);mon.setDate(diff);
+    const k=mon.toISOString().slice(0,10);
+    semanas[k]=(semanas[k]||0)+e.amount;
+  });
+  const weekKeys=Object.keys(semanas).sort().reverse();
+
+  return{wb,wt,rem,over,pct,mt,tf,ef,semRestantes,dispMes,topCat,semanas,weekKeys,monthExp,tw};
 }
 
-async function sendAI(){
+function analyzeLocally(text){
+  const t=text.toLowerCase().trim();
+  const ctx=getFinancialContext();
+  const{wb,wt,rem,over,pct,mt,tf,ef,semRestantes,dispMes,topCat,semanas,weekKeys,monthExp,tw}=ctx;
+
+  // Extract number from text
+  const numMatch=t.replace(/[.,](\d{3})/g,'$1').match(/\d+(?:[.,]\d+)?/);
+  const val=numMatch?parseFloat(numMatch[0].replace(',','.')):null;
+
+  // Risk emoji helper
+  const riskEmoji=()=>pct<0.6?'🟢':pct<0.85?'🟡':pct<1?'🟠':'🔴';
+
+  // ── 1. POSSO GASTAR X? ──
+  const isSpendQ=val&&(t.match(/posso|d[aá] pra|cabe|comprar|gastar|vale a pena|compens|ir n[ao]|fazer|pagar|pedir/));
+  if(isSpendQ){
+    const depois=rem-val;
+    const pctVal=wb>0?val/wb:0;
+    const pctUsado=wb>0?(wt+val)/wb:0;
+
+    if(over){
+      const excesso=wt-wb;
+      return`🔴 Semana já estourada em ${fmt(excesso)}. Gastar mais ${fmt(val)} pioraria a situação.\n\nVocês já ultrapassaram a meta em ${Math.round(excesso/wb*100)}%. Se for urgente, tente compensar nos próximos dias reduzindo outros gastos.`;
+    }
+
+    if(val<=0) return'Não entendi o valor. Tente novamente, ex: "posso gastar 200 em roupas?"';
+
+    const msg=[];
+    if(pctUsado<0.6){
+      msg.push(`✅ Sim, à vontade! ${fmt(val)} representa só ${Math.round(pctVal*100)}% da meta semanal.`);
+      msg.push(`Sobrariam ${fmt(depois)} para o resto da semana — situação confortável.`);
+    } else if(pctUsado<0.85){
+      msg.push(`🟡 Cabe, mas com atenção. Após esse gasto vocês teriam ${fmt(depois)} para o resto da semana.`);
+      msg.push(`Isso deixaria ${Math.round(pctUsado*100)}% da meta usada — ainda ok, mas sem muito espaço.`);
+    } else if(val<=rem){
+      msg.push(`🟠 Tecnicamente cabe, mas ficaria apertado — restariam só ${fmt(depois)}.`);
+      msg.push(`Vocês estariam em ${Math.round(pctUsado*100)}% da meta. Recomendo só se for necessário ou prioridade real.`);
+    } else {
+      const falta=val-rem;
+      msg.push(`❌ Não cabe esta semana. Faltam ${fmt(falta)} no saldo disponível.`);
+      if(semRestantes>1) msg.push(`Mas ainda há ${semRestantes} semanas no mês — pode ser mais tranquilo na próxima.`);
+      else msg.push(`Esta é a última semana do mês. Avalie se realmente é necessário agora.`);
+    }
+
+    // Bonus: put in context of month
+    const restaMes=dispMes-mt;
+    if(restaMes>0&&val<=rem) msg.push(`No mês, vocês ainda têm ~${fmt(restaMes)} de margem considerando fixos e reserva.`);
+
+    return msg.join('\n\n');
+  }
+
+  // ── 2. SITUAÇÃO GERAL / MÊS ──
+  if(t.match(/situa[cç][aã]o|como (estou|estamos|t[aá]|t[aá]mos)|resumo|vis[aã]o|geral|mês|mes|como vai|balanço|balanco/)){
+    const status=pct<0.6?'✅ Ótima':pct<0.85?'🟡 Atenção':pct<1?'🟠 Alerta':'🔴 Estourada';
+    const restaMes=Math.max(0,dispMes-mt);
+    const mediaIdeal=dispMes/4;
+    const semanasPassadas=4-semRestantes;
+    const gastoIdeal=mediaIdeal*semanasPassadas;
+    const tendencia=mt>gastoIdeal?'acima':'dentro';
+
+    let r=`${riskEmoji()} Semana: ${status}\n`;
+    r+=`💳 Gasto esta semana: ${fmt(wt)} de ${fmt(wb)} (${Math.round(pct*100)}%)\n`;
+    r+=`📅 Gasto no mês: ${fmt(mt)} — tendência ${tendencia} do esperado\n\n`;
+    r+=`💰 Renda: ${fmt(settings.income)}\n`;
+    r+=`📌 Fixos: ${fmt(tf)}\n`;
+    r+=`🏦 Reserva: ${fmt(settings.reserve)}\n`;
+    r+=`📊 Disponível p/ cartão no mês: ${fmt(dispMes)}\n\n`;
+
+    if(semRestantes>0) r+=`Ainda ${semRestantes} semana(s) no mês — margem estimada: ${fmt(restaMes)}.`;
+    if(over) r+=`\n\n⚠️ Atenção: a meta desta semana já foi ultrapassada em ${fmt(wt-wb)}.`;
+    return r;
+  }
+
+  // ── 3. SALDO / QUANTO TENHO ──
+  if(t.match(/quanto (tenho|sobrou|resta|posso|[hà]|tem)|saldo|disponível|disponivel|sobra|restam|sobrou/)){
+    if(over){
+      return`🔴 Meta semanal estourada!\n\nGasto: ${fmt(wt)} | Meta: ${fmt(wb)}\nExcesso: ${fmt(wt-wb)}\n\nTente não gastar mais nada esta semana se possível.`;
+    }
+    const diasSemana=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+    const hoje=new Date().getDay();
+    const diasRestantes=hoje===0?0:7-hoje;
+    const porDia=diasRestantes>0?rem/diasRestantes:rem;
+    return`${riskEmoji()} Disponível esta semana: ${fmt(rem)}\n\nMeta: ${fmt(wb)} | Gasto: ${fmt(wt)} (${Math.round(pct*100)}%)\n\nSão ~${fmt(porDia)} por dia até domingo.\n\nNo mês, o cartão acumula ${fmt(mt)} de ${fmt(dispMes)} disponíveis.`;
+  }
+
+  // ── 4. HISTÓRICO ──
+  if(t.match(/hist[oó]rico|semana passada|semanas|anterior|compara[rç]|evolu[cç][aã]o|últimas/)){
+    if(weekKeys.length<2) return'Ainda não há histórico suficiente. Continue lançando os gastos e em breve terei comparativos para mostrar.';
+    const linhas=weekKeys.slice(0,5).map((k,i)=>{
+      const d=new Date(k+'T12:00:00');
+      const label=i===0?'Esta semana':`${d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`;
+      const v=semanas[k];
+      const ok=v<=wb;
+      const bar='█'.repeat(Math.min(10,Math.round(v/wb*10)));
+      return`${ok?'✅':'❌'} ${label}: ${fmt(v)} ${bar}`;
+    });
+    const media=weekKeys.slice(0,4).reduce((s,k)=>s+semanas[k],0)/Math.min(4,weekKeys.length);
+    return`📊 Histórico de gastos (meta: ${fmt(wb)}/sem)\n\n${linhas.join('\n')}\n\nMédia das últimas semanas: ${fmt(media)}\n${media>wb?'⚠️ Acima da meta em média — vale revisar os hábitos.':'✅ Dentro da meta em média — bom controle!'}`;
+  }
+
+  // ── 5. CATEGORIAS / ONDE GASTO MAIS ──
+  if(t.match(/categori|onde (gasto|gastamos|t[aá] indo)|mais (gasto|gastamos)|distribui[cç][aã]o|tipo de gasto/)){
+    if(!topCat.length) return'Nenhum gasto lançado esta semana ainda.';
+    const lista=topCat.map(([id,v])=>{
+      const cat=CATS.find(c=>c.id===id)||CATS[7];
+      const pctCat=wt>0?Math.round(v/wt*100):0;
+      return`${cat.icon} ${cat.label}: ${fmt(v)} (${pctCat}%)`;
+    }).join('\n');
+    return`📊 Gastos desta semana por categoria:\n\n${lista}\n\nTotal: ${fmt(wt)}`;
+  }
+
+  // ── 6. FIXOS ──
+  if(t.match(/fixo|fixas|conta(s)?|aluguel|mensalidade/)){
+    if(!ef.length) return'Nenhum gasto fixo cadastrado. Adicione na aba Fixos para o cálculo da meta funcionar corretamente.';
+    const lista=ef.map(f=>`• ${f.name}: ${fmt(f.effectiveAmount)}`).join('\n');
+    const pctRenda=Math.round(tf/settings.income*100);
+    let aviso='';
+    if(pctRenda>60) aviso='\n\n🔴 Atenção: fixos consomem mais de 60% da renda — pouca margem para gastos variáveis.';
+    else if(pctRenda>45) aviso='\n\n🟡 Fixos acima de 45% da renda. Vale revisar se há algo para reduzir.';
+    else aviso='\n\n✅ Proporção de fixos saudável.';
+    return`📌 Gastos fixos deste mês:\n\n${lista}\n\nTotal: ${fmt(tf)} (${pctRenda}% da renda)${aviso}`;
+  }
+
+  // ── 7. DICA / CONSELHO ──
+  if(t.match(/dica|conselho|sugest[aã]o|ajuda|o que (fazer|acha)|recomenda/)){
+    const dicas=[];
+    if(over) dicas.push(`🔴 Semana estourada em ${fmt(wt-wb)}. Evite qualquer gasto não essencial até domingo.`);
+    else if(pct>0.85) dicas.push(`🟠 Vocês estão em ${Math.round(pct*100)}% da meta semanal. Freiem os gastos até domingo.`);
+    else if(pct<0.4&&new Date().getDay()>=4) dicas.push(`✅ Semana muito bem controlada — ${Math.round(pct*100)}% da meta usada.`);
+
+    if(tf/settings.income>0.55) dicas.push(`📌 Fixos consomem ${Math.round(tf/settings.income*100)}% da renda. Considere renegociar algum contrato.`);
+
+    const media=weekKeys.slice(0,3).reduce((s,k)=>s+(semanas[k]||0),0)/Math.max(1,Math.min(3,weekKeys.length));
+    if(media>wb&&weekKeys.length>=2) dicas.push(`📈 Nas últimas semanas vocês ficaram acima da meta em média (${fmt(media)} vs ${fmt(wb)}). Tendência de estouro.`);
+    else if(weekKeys.length>=2) dicas.push(`📉 Nas últimas semanas ficaram dentro da meta em média (${fmt(media)}). Continue assim!`);
+
+    if(topCat.length&&topCat[0][1]>wb*0.4){
+      const cat=CATS.find(c=>c.id===topCat[0][0])||CATS[7];
+      dicas.push(`${cat.icon} "${cat.label}" é onde mais gastaram esta semana (${fmt(topCat[0][1])}). Vale atenção nessa categoria.`);
+    }
+
+    if(!dicas.length) dicas.push(`💚 Tudo dentro do esperado! Continuem lançando os gastos em tempo real para manter o controle.`);
+    return dicas.join('\n\n');
+  }
+
+  // ── 8. PROJEÇÃO DO MÊS ──
+  if(t.match(/proje[cç][aã]o|vai fechar|vai dar|estimate|previs[aã]o|fim do m[eê]s|final do m[eê]s/)){
+    const semanasPassadas=Math.max(1,4-semRestantes);
+    const mediaGasto=mt/semanasPassadas;
+    const projecao=mediaGasto*4;
+    const ok=projecao<=dispMes;
+    return`📈 Projeção para o fim do mês:\n\nGasto médio por semana: ${fmt(mediaGasto)}\nProjeção total no cartão: ${fmt(projecao)}\nDisponível para cartão: ${fmt(dispMes)}\n\n${ok?`✅ Projeção dentro do limite! Margem estimada: ${fmt(dispMes-projecao)}`:`⚠️ Projeção acima do limite em ${fmt(projecao-dispMes)}. Reduzam ${fmt((projecao-dispMes)/Math.max(1,semRestantes))} por semana para equilibrar.`}`;
+  }
+
+  // ── 9. QUANTO POSSO GASTAR HOJE ──
+  if(t.match(/hoje|dia|hoje posso|por dia/)){
+    if(over) return`🔴 Meta semanal já estourada. Tente não gastar mais hoje.`;
+    const hoje=new Date().getDay();
+    const diasRestantes=Math.max(1,hoje===0?1:7-hoje+1);
+    const porDia=rem/diasRestantes;
+    return`📅 Para hoje e os próximos dias:\n\nDisponível na semana: ${fmt(rem)}\nDias restantes até domingo: ${diasRestantes}\nMédia diária possível: ${fmt(porDia)}\n\n${porDia>200?'✅ Margem confortável por dia.':porDia>100?'🟡 Margem moderada — gaste com atenção.':'🟠 Margem baixa — só o essencial.'}`;
+  }
+
+  // ── FALLBACK INTELIGENTE ──
+  const status=over?`🔴 Meta estourada (${fmt(wt)} de ${fmt(wb)})`:pct<0.6?`🟢 Tranquilo (${Math.round(pct*100)}% da meta)`:pct<0.85?`🟡 Atenção (${Math.round(pct*100)}% da meta)`:`🟠 Alerta (${Math.round(pct*100)}% da meta)`;
+  return`Não entendi exatamente sua pergunta, mas aqui está o resumo:\n\n${status}\n💳 Gasto esta semana: ${fmt(wt)} | Disponível: ${fmt(rem)}\n📅 Gasto no mês: ${fmt(mt)}\n\nPergunta de exemplo:\n• "posso gastar 300 em roupas?"\n• "como estamos no mês?"\n• "onde estamos gastando mais?"\n• "projeção para o fim do mês"`;
+}
+
+function sendAI(){
   const input=document.getElementById('ai-input');
   const text=input.value.trim();if(!text)return;
   input.value='';
   const msgs=document.getElementById('ai-messages');
   msgs.innerHTML+=`<div class="ai-bubble user">${text}</div><div class="ai-bubble bot typing" id="ai-typing">Analisando...</div>`;
   msgs.scrollTop=msgs.scrollHeight;
-  const systemPrompt=buildSystemPrompt();
-  const contents=[];
-  aiHistory.forEach(h=>{contents.push({role:h.role==='assistant'?'model':'user',parts:[{text:h.content}]});});
-  contents.push({role:'user',parts:[{text:text}]});
-  try{
-    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({system_instruction:{parts:[{text:systemPrompt}]},contents,generationConfig:{maxOutputTokens:600,temperature:0.7}})
-    });
-    const data=await res.json();
-    if(data.error){throw new Error(data.error.message);}
-    const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'Não consegui responder agora.';
-    aiHistory.push({role:'user',content:text});
-    aiHistory.push({role:'assistant',content:reply});
-    if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);
+  setTimeout(()=>{
+    const reply=analyzeLocally(text);
     const typing=document.getElementById('ai-typing');
     if(typing)typing.remove();
     msgs.innerHTML+=`<div class="ai-bubble bot">${reply.replace(/\n/g,'<br>')}</div>`;
     msgs.scrollTop=msgs.scrollHeight;
-  }catch(e){
-    const typing=document.getElementById('ai-typing');
-    if(typing)typing.textContent='Erro: '+e.message;
-  }
+  },500);
 }
 document.getElementById('ai-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendAI();});
 
