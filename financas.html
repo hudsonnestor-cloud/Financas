@@ -552,27 +552,30 @@ async function closeMonth(){
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-// ── AI ──
+// ── AI (Gemini) ──
+const GEMINI_KEY='AQ.Ab8RN6LWNmaUwLFSZFpr0r-g_XUQr94HqUlKOow-bEcvZhVTtw';
 let aiHistory=[];
+
 function buildSystemPrompt(){
   const wb=getWeeklyBudget();
-  const{start,end}=getWeekBounds();
-  const tw=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;});
-  const wt=tw.reduce((s,e)=>s+e.amount,0);
+  const{start:ws,end:we}=getWeekBounds();
   const{start:ms,end:me}=getMonthBounds();
+  const tw=expenses.filter(e=>{const d=new Date(e.date);return d>=ws&&d<=we;});
+  const wt=tw.reduce((s,e)=>s+e.amount,0);
   const mt=expenses.filter(e=>{const d=new Date(e.date);return d>=ms&&d<=me;}).reduce((s,e)=>s+e.amount,0);
   const ef=getEffectiveFixed();
   const tf=ef.reduce((s,f)=>s+f.effectiveAmount,0);
-  const modeInfo=settings.weekly_mode==='manual'?`Meta manual definida em ${fmt(settings.weekly_manual)}`:`Meta automática calculada por fórmula`;
+  const modeInfo=settings.weekly_mode==='manual'?`Meta manual: ${fmt(settings.weekly_manual)}`:`Meta automática pela fórmula`;
   return`Você é uma consultora financeira pessoal e direta de um casal brasileiro. Responda sempre em português, de forma curta e objetiva (máximo 3 parágrafos). Use emojis com moderação.
 
-SITUAÇÃO ATUAL:
+SITUAÇÃO FINANCEIRA ATUAL:
 - Renda mensal: ${fmt(settings.income)}
 - Gastos fixos (mês): ${fmt(tf)} — ${ef.map(f=>f.name+': '+fmt(f.effectiveAmount)).join(', ')||'nenhum'}
 - Reserva: ${fmt(settings.reserve)}
 - Meta semanal: ${fmt(wb)} (${modeInfo})
 - Gasto no cartão esta semana: ${fmt(wt)} (${Math.round(wb>0?wt/wb*100:0)}% da meta)
 - Gasto no cartão este mês: ${fmt(mt)}
+- Semanas restantes no mês: ~${Math.max(1,4-Math.floor((new Date().getDate()-1)/7))}
 
 Analise perguntas sobre gastos ou dê visão geral do mês. Seja honesta e direta.`;
 }
@@ -584,21 +587,29 @@ async function sendAI(){
   const msgs=document.getElementById('ai-messages');
   msgs.innerHTML+=`<div class="ai-bubble user">${text}</div><div class="ai-bubble bot typing" id="ai-typing">Analisando...</div>`;
   msgs.scrollTop=msgs.scrollHeight;
-  aiHistory.push({role:'user',content:text});
+  const systemPrompt=buildSystemPrompt();
+  const contents=[];
+  aiHistory.forEach(h=>{contents.push({role:h.role==='assistant'?'model':'user',parts:[{text:h.content}]});});
+  contents.push({role:'user',parts:[{text:text}]});
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:buildSystemPrompt(),messages:aiHistory})
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({system_instruction:{parts:[{text:systemPrompt}]},contents,generationConfig:{maxOutputTokens:600,temperature:0.7}})
     });
     const data=await res.json();
-    const reply=data.content?.[0]?.text||'Não consegui responder agora.';
+    if(data.error){throw new Error(data.error.message);}
+    const reply=data.candidates?.[0]?.content?.parts?.[0]?.text||'Não consegui responder agora.';
+    aiHistory.push({role:'user',content:text});
     aiHistory.push({role:'assistant',content:reply});
-    document.getElementById('ai-typing').remove();
+    if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);
+    const typing=document.getElementById('ai-typing');
+    if(typing)typing.remove();
     msgs.innerHTML+=`<div class="ai-bubble bot">${reply.replace(/\n/g,'<br>')}</div>`;
     msgs.scrollTop=msgs.scrollHeight;
   }catch(e){
-    const t=document.getElementById('ai-typing');if(t)t.textContent='Erro ao conectar com a IA.';
+    const typing=document.getElementById('ai-typing');
+    if(typing)typing.textContent='Erro: '+e.message;
   }
 }
 document.getElementById('ai-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendAI();});
