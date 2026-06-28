@@ -1,0 +1,19 @@
+{
+  "name": "Finanças Família",
+  "short_name": "Finanças",
+  "description": "Controle financeiro do casal",
+  "start_url": "/Financas/financas.html",
+  "scope": "/Financas/",
+  "display": "standalone",
+  "background_color": "#F7F6F2",
+  "theme_color": "#2D6A4F",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
