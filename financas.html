@@ -1,191 +1,148 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Finanças"/>
+<meta name="theme-color" content="#2D6A4F"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon.svg"/>
+<!-- iOS splash & standalone fixes -->
+<style>
+  @media (display-mode: standalone) {
+    body { padding-top: env(safe-area-inset-top); }
+    nav  { padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+  }
+</style>
 <title>Finanças Família</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body { background: #F7F6F2; font-family: system-ui, -apple-system, sans-serif;
-         color: #1a1a1a; max-width: 430px; margin: 0 auto; min-height: 100vh; }
-  :root {
-    --bg: #F7F6F2; --ink: #1a1a1a; --muted: #9a9a8e;
-    --border: #E2E1DC; --accent: #2D6A4F; --warn: #B7791F;
-    --danger: #C0392B; --white: #fff;
-  }
-  .scroll { padding-bottom: 90px; }
-  .label { font-size: 10px; font-weight: 600; letter-spacing: 1.8px;
-           text-transform: uppercase; color: var(--muted); }
-  .divider { height: 1px; background: var(--border); margin: 0 24px; }
-  .big-num { font-size: 42px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
-  .section { padding: 0 24px; }
-  input { font-family: system-ui, -apple-system, sans-serif; }
-
-  /* Input */
-  .input-wrap { background: var(--white); border: 1.5px solid var(--border);
-                border-radius: 14px; padding: 14px 16px; transition: border-color .2s; }
-  .input-wrap:focus-within { border-color: var(--accent); }
-  .input-wrap input { background: transparent; border: none; outline: none;
-                      font-size: 22px; font-weight: 600; color: var(--ink);
-                      width: 100%; caret-color: var(--accent); }
-  .input-wrap input::placeholder { color: var(--border); font-weight: 400; font-size: 16px; }
-  .input-sm { background: var(--white); border: 1.5px solid var(--border);
-              border-radius: 12px; padding: 12px 14px; font-size: 15px;
-              color: var(--ink); outline: none; width: 100%;
-              transition: border-color .2s; }
-  .input-sm:focus { border-color: var(--accent); }
-
-  /* Preview pill */
-  .preview { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-  .pill { display: inline-flex; align-items: center; gap: 5px;
-          border-radius: 99px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
-
-  /* Buttons */
-  .btn { background: var(--accent); color: #fff; border: none; border-radius: 12px;
-         padding: 14px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%;
-         margin-top: 10px; transition: opacity .15s; }
-  .btn:active { opacity: .8; }
-  .btn-sm { background: transparent; border: 1.5px solid var(--border);
-            border-radius: 10px; padding: 10px 14px; font-size: 14px;
-            cursor: pointer; color: var(--ink); font-weight: 500; }
-  .btn-icon { background: none; border: none; color: var(--muted);
-              font-size: 20px; cursor: pointer; padding: 0 2px; line-height: 1; }
-  .btn-danger { background: var(--danger); color: #fff; border: none;
-                border-radius: 10px; padding: 10px 18px; font-size: 14px;
-                font-weight: 700; cursor: pointer; }
-
-  /* Progress bar */
-  .bar-track { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 16px; }
-  .bar-fill { height: 100%; border-radius: 99px; transition: width .6s ease, background .4s; }
-
-  /* Expense row */
-  .exp-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 24px; }
-  .exp-icon { font-size: 20px; margin-right: 12px; }
-  .exp-name { font-size: 14px; font-weight: 500; }
-  .exp-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
-  .exp-amt { font-size: 15px; font-weight: 700; margin-right: 12px; }
-
-  /* Formula rows */
-  .formula-row { display: flex; justify-content: space-between; font-size: 13px; }
-
-  /* Nav */
-  nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-        width: 100%; max-width: 430px; background: var(--white);
-        border-top: 1px solid var(--border);
-        display: flex; justify-content: space-around; padding: 10px 0 18px; z-index: 100; }
-  nav button { display: flex; flex-direction: column; align-items: center; gap: 3px;
-               background: none; border: none; cursor: pointer; color: var(--muted);
-               font-size: 10px; font-weight: 400; padding: 4px 20px; }
-  nav button.active { color: var(--accent); font-weight: 700; }
-  nav button span { font-size: 22px; }
-
-  /* Toast */
-  #toast { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%) translateY(12px);
-           background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 99px;
-           font-size: 13px; font-weight: 500; opacity: 0; transition: all .25s ease;
-           pointer-events: none; z-index: 999; white-space: nowrap; }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* Sync dot */
-  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: all .3s; }
-  .sync-dot.pulse { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-
-  /* Modal */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4);
-                   display: flex; align-items: flex-end; justify-content: center;
-                   z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s; }
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-  .modal { background: var(--bg); border-radius: 20px 20px 0 0; padding: 24px 24px 40px;
-           width: 100%; max-width: 430px; transform: translateY(100%); transition: transform .3s ease; }
-  .modal-overlay.open .modal { transform: translateY(0); }
-
-  /* Loading */
-  #loading { display: flex; flex-direction: column; justify-content: center; align-items: center;
-             gap: 12px; height: 100vh; }
-  .spinner { width: 32px; height: 32px; border: 3px solid var(--border);
-             border-top-color: var(--accent); border-radius: 50%;
-             animation: spin .8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .hidden { display: none !important; }
-  .gap-8 { gap: 8px; }
-  .flex { display: flex; }
-  .flex-col { flex-direction: column; }
-  .mt-4 { margin-top: 4px; }
-  .mt-8 { margin-top: 8px; }
-  .mt-10 { margin-top: 10px; }
-  .mt-16 { margin-top: 16px; }
-  .mt-20 { margin-top: 20px; }
-  .mt-24 { margin-top: 24px; }
-  .mb-4 { margin-bottom: 4px; }
-  .mb-8 { margin-bottom: 8px; }
-  .mb-10 { margin-bottom: 10px; }
-  .card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#F7F6F2;font-family:system-ui,-apple-system,sans-serif;color:#1a1a1a;max-width:430px;margin:0 auto;min-height:100vh}
+:root{--bg:#F7F6F2;--ink:#1a1a1a;--muted:#9a9a8e;--border:#E2E1DC;--accent:#2D6A4F;--warn:#B7791F;--danger:#C0392B;--white:#fff;--purple:#6366f1}
+.scroll{padding-bottom:100px}
+.label{font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted)}
+.divider{height:1px;background:var(--border);margin:0 24px}
+input,textarea{font-family:system-ui,-apple-system,sans-serif}
+.input-wrap{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;transition:border-color .2s}
+.input-wrap:focus-within{border-color:var(--accent)}
+.input-wrap input{background:transparent;border:none;outline:none;font-size:22px;font-weight:600;color:var(--ink);width:100%;caret-color:var(--accent)}
+.input-wrap input::placeholder{color:#ccc;font-weight:400;font-size:16px}
+.input-sm{background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;color:var(--ink);outline:none;width:100%;transition:border-color .2s}
+.input-sm:focus{border-color:var(--accent)}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:14px;font-weight:700;font-size:15px;cursor:pointer;width:100%;transition:opacity .15s}
+.btn:active{opacity:.8}
+.btn-outline{background:transparent;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-size:14px;cursor:pointer;color:var(--ink);font-weight:500;width:100%}
+.btn-icon{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0;line-height:1}
+.btn-danger{background:var(--danger);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600}
+.bar-track{height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:16px}
+.bar-fill{height:100%;border-radius:99px;transition:width .6s ease,background .4s}
+.exp-row{display:flex;align-items:center;justify-content:space-between;padding:13px 24px}
+.row{display:flex;justify-content:space-between;align-items:center}
+.card{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:16px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--white);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:10px 0 18px;z-index:100}
+nav button{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:400;padding:4px 14px}
+nav button.active{color:var(--accent);font-weight:700}
+nav button span{font-size:20px}
+#toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;transition:all .25s ease;pointer-events:none;z-index:999;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--border);transition:all .3s}
+.sync-dot.pulse{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg);border-radius:20px 20px 0 0;padding:24px 24px 44px;width:100%;max-width:430px;transform:translateY(100%);transition:transform .3s ease;max-height:85vh;overflow-y:auto}
+.modal-overlay.open .modal{transform:translateY(0)}
+#loading{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;height:100vh}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+.ai-bubble{border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.6;margin-bottom:8px;max-width:90%}
+.ai-bubble.user{background:#2D6A4F;color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+.ai-bubble.bot{background:var(--white);border:1px solid var(--border);color:var(--ink);border-bottom-left-radius:4px}
+.ai-bubble.typing{color:var(--muted);font-style:italic}
+.ai-input-row{display:flex;gap:8px;padding:12px 24px;background:var(--bg);border-top:1px solid var(--border);position:sticky;bottom:90px}
+.ai-input-row input{flex:1;background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;font-size:14px;color:var(--ink);outline:none}
+.ai-input-row input:focus{border-color:var(--accent)}
+.ai-send{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:0 16px;font-size:18px;cursor:pointer}
+.edit-input{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:16px;font-weight:600;color:var(--ink);outline:none;width:100%}
+.edit-input:focus{border-color:var(--accent)}
+/* Toggle switch */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.toggle-switch{position:relative;width:48px;height:28px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#ddd;border-radius:99px;cursor:pointer;transition:.3s}
+.toggle-slider:before{content:'';position:absolute;height:20px;width:20px;left:4px;bottom:4px;background:#fff;border-radius:50%;transition:.3s}
+.toggle-switch input:checked+.toggle-slider{background:var(--accent)}
+.toggle-switch input:checked+.toggle-slider:before{transform:translateX(20px)}
+.mode-tab{flex:1;padding:10px;text-align:center;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.mode-tab.active{background:var(--accent);color:#fff}
+.mode-tab:not(.active){background:transparent;color:var(--muted)}
 </style>
 </head>
 <body>
 
 <div id="loading">
   <div class="spinner"></div>
-  <div style="color:#2D6A4F;font-weight:600;font-size:14px">Carregando...</div>
+  <div style="color:#2D6A4F;font-weight:600;font-size:14px">Conectando...</div>
 </div>
 
 <div id="app" class="hidden">
 
   <!-- HOME -->
   <div id="tab-home" class="scroll hidden">
-    <div class="flex" style="justify-content:space-between;align-items:center;padding:20px 24px 0">
-      <span style="font-size:13px;font-weight:600;color:var(--muted)">esta semana</span>
-      <div class="flex" style="align-items:center;gap:5px">
+    <div class="row" style="padding:20px 24px 0">
+      <span style="font-size:13px;font-weight:600;color:var(--muted)" id="home-week-label">esta semana</span>
+      <div style="display:flex;align-items:center;gap:5px">
         <div class="sync-dot" id="sync-dot"></div>
         <span style="font-size:11px;color:var(--muted)">sync</span>
       </div>
     </div>
-
     <div style="padding:16px 24px 20px">
-      <div class="big-num" id="home-remaining">R$ 0</div>
+      <div id="home-remaining" style="font-size:42px;font-weight:800;letter-spacing:-2px;line-height:1">R$ 0</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px">
-        restam de <span id="home-budget">R$ 0</span> ·
-        <span id="home-risk" style="font-weight:600">tranquilo</span>
+        restam de <span id="home-budget">R$ 0</span> · <span id="home-risk" style="font-weight:600"></span>
+        <span id="home-mode-badge" style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-left:4px;opacity:.6"></span>
       </div>
-      <div class="bar-track">
-        <div class="bar-fill" id="home-bar" style="width:0%;background:#2D6A4F"></div>
-      </div>
-      <div class="flex" style="justify-content:space-between;margin-top:6px">
+      <div class="bar-track"><div class="bar-fill" id="home-bar" style="width:0%"></div></div>
+      <div class="row" style="margin-top:6px">
         <span style="font-size:11px;color:var(--muted)" id="home-spent">R$ 0 gasto</span>
         <span style="font-size:11px;color:var(--muted)" id="home-pct">0%</span>
       </div>
     </div>
-
     <div class="divider"></div>
-
-    <!-- Quick add -->
     <div style="padding:20px 24px">
-      <div class="label mb-8">lançar gasto</div>
+      <div class="label" style="margin-bottom:8px">lançar gasto</div>
       <div class="input-wrap">
-        <input type="text" id="quick-input" placeholder='"150 restaurante" ou "89 uber"'
-               inputmode="text" autocomplete="off" autocorrect="off" />
-        <div class="preview hidden" id="preview-row">
+        <input type="text" id="quick-input" placeholder='"150 restaurante" ou "89 uber"' autocomplete="off" autocorrect="off"/>
+        <div id="preview-row" class="hidden" style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
           <div class="pill" id="preview-cat" style="background:#2D6A4F18;color:#2D6A4F"></div>
           <span style="font-weight:800;font-size:18px;color:#2D6A4F" id="preview-amt"></span>
         </div>
       </div>
-      <div id="parse-error" class="hidden" style="margin-top:6px;font-size:12px;color:var(--danger)">
-        Não entendi. Tente "150 restaurante" ou "89 uber"
-      </div>
-      <button class="btn hidden" id="btn-add-expense">Lançar</button>
+      <div id="parse-error" class="hidden" style="margin-top:6px;font-size:12px;color:var(--danger)">Não entendi. Tente "150 restaurante"</div>
+      <button class="btn hidden" id="btn-add-expense" style="margin-top:10px">Lançar</button>
     </div>
-
     <div class="divider"></div>
-
-    <!-- This week list -->
     <div style="padding:16px 0 0">
-      <div class="label" style="padding:0 24px 4px">lançamentos desta semana</div>
-      <div id="expense-list">
-        <div style="padding:16px 24px;color:var(--muted);font-size:14px">Nenhum gasto ainda esta semana.</div>
-      </div>
+      <div class="label" style="padding:0 24px;margin-bottom:4px">lançamentos desta semana</div>
+      <div id="expense-list"></div>
+    </div>
+  </div>
+
+  <!-- IA -->
+  <div id="tab-ia" class="hidden" style="display:flex;flex-direction:column;height:100vh">
+    <div style="padding:20px 24px 12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:20px;font-weight:800;letter-spacing:-.5px">Consultora financeira</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:2px">Pergunte sobre qualquer gasto ou situação do mês</div>
+    </div>
+    <div id="ai-messages" style="flex:1;overflow-y:auto;padding:16px 24px;padding-bottom:160px;display:flex;flex-direction:column;gap:4px">
+      <div class="ai-bubble bot">Olá! Posso analisar se um gasto cabe no seu orçamento ou dar uma visão geral do mês. Como posso ajudar?</div>
+    </div>
+    <div class="ai-input-row">
+      <input type="text" id="ai-input" placeholder='"posso gastar 300 em roupas?"' autocomplete="off"/>
+      <button class="ai-send" onclick="sendAI()">↑</button>
     </div>
   </div>
 
@@ -193,36 +150,31 @@
   <div id="tab-fixed" class="scroll hidden">
     <div style="padding:24px 24px 0">
       <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px">Gastos fixos</div>
-      <div style="color:var(--muted);font-size:13px">Descontados automaticamente da meta semanal</div>
+      <div style="font-size:13px;color:var(--muted)">Toque para editar o valor deste mês</div>
     </div>
-
     <div style="margin:20px 24px" class="card">
-      <div class="flex flex-col" style="gap:10px">
-        <div class="formula-row"><span style="color:var(--muted)">Renda mensal</span><span id="f-income" style="font-weight:600"></span></div>
-        <div class="formula-row"><span style="color:var(--muted)">− Gastos fixos</span><span id="f-fixed" style="font-weight:600;color:#B7791F"></span></div>
-        <div class="formula-row"><span style="color:var(--muted)">− Reserva</span><span id="f-reserve" style="font-weight:600;color:#6366f1"></span></div>
-        <div style="border-top:1px solid var(--border);padding-top:10px" class="formula-row">
-          <span style="color:var(--muted)">Meta semanal (÷4)</span>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="row" style="font-size:13px"><span style="color:var(--muted)">Renda mensal</span><span id="f-income" style="font-weight:600"></span></div>
+        <div class="row" style="font-size:13px"><span style="color:var(--muted)">− Gastos fixos (mês)</span><span id="f-fixed" style="font-weight:600;color:var(--warn)"></span></div>
+        <div class="row" style="font-size:13px"><span style="color:var(--muted)">− Reserva</span><span id="f-reserve" style="font-weight:600;color:var(--purple)"></span></div>
+        <div style="border-top:1px solid var(--border);padding-top:10px" class="row">
+          <span style="font-size:13px;color:var(--muted)">Meta semanal automática (÷4)</span>
           <span id="f-weekly" style="font-weight:800;color:#2D6A4F;font-size:16px"></span>
         </div>
       </div>
     </div>
-
     <div class="divider"></div>
-
     <div style="padding:20px 24px">
-      <div class="label mb-10">adicionar fixo</div>
-      <div class="flex flex-col" style="gap:8px">
-        <input class="input-sm" id="fixed-name" placeholder="Nome (ex: Aluguel)" />
-        <div class="flex" style="gap:8px">
-          <input class="input-sm" id="fixed-amt" type="number" placeholder="Valor R$" style="flex:1" />
+      <div class="label" style="margin-bottom:10px">adicionar fixo</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input class="input-sm" id="fixed-name" placeholder="Nome (ex: Aluguel)"/>
+        <div style="display:flex;gap:8px">
+          <input class="input-sm" id="fixed-amt" type="number" placeholder="Valor base R$" style="flex:1"/>
           <button onclick="addFixed()" style="background:#2D6A4F;color:#fff;border:none;border-radius:10px;padding:0 22px;font-size:20px;font-weight:700;cursor:pointer">+</button>
         </div>
       </div>
     </div>
-
     <div class="divider"></div>
-
     <div id="fixed-list" style="padding:8px 0"></div>
   </div>
 
@@ -230,410 +182,456 @@
   <div id="tab-config" class="scroll hidden">
     <div style="padding:24px 24px 0">
       <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px">Configurações</div>
-      <div style="color:var(--muted);font-size:13px">Compartilhadas com sua esposa</div>
+      <div style="font-size:13px;color:var(--muted)">Compartilhadas com sua esposa</div>
     </div>
 
-    <div style="padding:24px 24px 0;display:flex;flex-direction:column;gap:16px">
+    <!-- Meta semanal -->
+    <div style="padding:20px 24px 0">
+      <div class="label" style="margin-bottom:12px">meta semanal</div>
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:4px;display:flex;gap:4px;margin-bottom:12px">
+        <button class="mode-tab" id="mode-auto-btn" onclick="setMode('auto')">⟳ Automático</button>
+        <button class="mode-tab" id="mode-manual-btn" onclick="setMode('manual')">✎ Manual</button>
+      </div>
+
+      <!-- Auto mode info -->
+      <div id="mode-auto-panel" class="card" style="margin-bottom:0">
+        <div style="font-size:12px;color:var(--muted);line-height:1.7">A meta é calculada pela fórmula:<br><strong style="color:var(--ink)">(renda − fixos − reserva) ÷ 4</strong><br>Configure a renda e reserva abaixo.</div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)" class="row">
+          <span style="font-size:13px;color:var(--muted)">Meta atual calculada</span>
+          <span id="cfg-auto-weekly" style="font-weight:800;color:var(--accent);font-size:16px"></span>
+        </div>
+      </div>
+
+      <!-- Manual mode input -->
+      <div id="mode-manual-panel" class="hidden">
+        <div class="input-wrap">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="cfg-manual-cur"></div>
+          <input type="number" id="cfg-manual-val" placeholder="Ex: 3500" style="background:transparent;border:none;outline:none;font-size:24px;font-weight:800;color:var(--accent);width:100%"/>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px">Este valor substitui o cálculo automático e se aplica a todas as semanas até você mudar.</div>
+      </div>
+    </div>
+
+    <div style="padding:16px 24px 0;display:flex;flex-direction:column;gap:12px">
       <div>
-        <div class="label mb-8">renda mensal</div>
+        <div class="label" style="margin-bottom:8px">renda mensal</div>
         <div class="input-wrap" style="padding:12px 16px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="cfg-income-cur"></div>
-          <input type="number" id="cfg-income" placeholder="21000" style="background:transparent;border:none;outline:none;font-size:18px;font-weight:600;color:var(--ink);width:100%" />
+          <input type="number" id="cfg-income" style="background:transparent;border:none;outline:none;font-size:18px;font-weight:600;color:var(--ink);width:100%"/>
         </div>
       </div>
       <div>
-        <div class="label mb-8">reserva mensal</div>
+        <div class="label" style="margin-bottom:8px">reserva mensal</div>
         <div class="input-wrap" style="padding:12px 16px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="cfg-reserve-cur"></div>
-          <input type="number" id="cfg-reserve" placeholder="5000" style="background:transparent;border:none;outline:none;font-size:18px;font-weight:600;color:var(--ink);width:100%" />
+          <input type="number" id="cfg-reserve" style="background:transparent;border:none;outline:none;font-size:18px;font-weight:600;color:var(--ink);width:100%"/>
         </div>
       </div>
-      <button class="btn" onclick="saveSettings()" style="margin-top:0">Salvar</button>
+      <button class="btn" onclick="saveSettings()" style="margin-top:0">Salvar configurações</button>
     </div>
 
     <!-- Fechar mês -->
-    <div style="margin:28px 24px 0" class="card">
-      <div class="label mb-8">fechar mês</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px">
-        Arquiva um resumo do mês atual e apaga todos os lançamentos do cartão para começar do zero.
-      </div>
-      <div id="month-summary" style="font-size:13px;color:var(--ink);margin-bottom:14px;font-weight:500"></div>
+    <div style="margin:24px 24px 0" class="card">
+      <div class="label" style="margin-bottom:8px">fechar mês</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:10px">Apaga todos os lançamentos do mês atual e reseta os valores editados dos fixos.</div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:14px" id="month-summary"></div>
       <button class="btn-danger" onclick="confirmCloseMonth()">Fechar mês e zerar lançamentos</button>
     </div>
 
     <div style="margin:16px 24px 0" class="card">
-      <div class="label mb-8">como funciona o sync</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.7">
-        Os dados ficam no Supabase e são compartilhados em tempo real. Qualquer lançamento aparece no outro celular em segundos. Salvem este link nos favoritos ou na tela inicial.
-      </div>
+      <div class="label" style="margin-bottom:8px">sync</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7">Dados no Supabase, atualizados a cada 6 segundos entre os dois celulares.</div>
     </div>
   </div>
 
-  <!-- NAV -->
   <nav>
-    <button id="nav-home" class="active" onclick="switchTab('home')"><span>◎</span>Início</button>
-    <button id="nav-fixed" onclick="switchTab('fixed')"><span>≡</span>Fixos</button>
-    <button id="nav-config" onclick="switchTab('config')"><span>◌</span>Config</button>
+    <button id="nav-home"   class="active" onclick="switchTab('home')">  <span>◎</span>Início</button>
+    <button id="nav-ia"     onclick="switchTab('ia')">                    <span>✦</span>IA</button>
+    <button id="nav-fixed"  onclick="switchTab('fixed')">                 <span>≡</span>Fixos</button>
+    <button id="nav-config" onclick="switchTab('config')">                <span>◌</span>Config</button>
   </nav>
 </div>
 
-<div id="toast"></div>
+<!-- Edit fixed modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div style="font-size:16px;font-weight:800;margin-bottom:4px" id="edit-modal-title"></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Edite o valor base (permanente) ou só este mês</div>
+    <div class="label" style="margin-bottom:8px">valor base (permanente)</div>
+    <input class="edit-input" id="edit-base" type="number" style="margin-bottom:14px"/>
+    <div class="label" style="margin-bottom:8px">valor deste mês (deixe vazio para usar o base)</div>
+    <input class="edit-input" id="edit-month" type="number" placeholder="Deixe vazio para usar o base"/>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn-outline" onclick="closeEditModal()">Cancelar</button>
+      <button class="btn" onclick="saveFixedEdit()" style="margin-top:0">Salvar</button>
+    </div>
+    <button class="btn-danger" onclick="deleteFixed()" style="width:100%;margin-top:10px;border-radius:12px;padding:12px">Excluir este fixo</button>
+  </div>
+</div>
 
 <!-- Confirm modal -->
 <div class="modal-overlay" id="confirm-modal">
   <div class="modal">
     <div style="font-size:18px;font-weight:800;margin-bottom:8px">Fechar mês?</div>
     <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px" id="confirm-text"></div>
-    <div class="flex" style="gap:10px">
-      <button class="btn-sm" style="flex:1" onclick="closeModal()">Cancelar</button>
-      <button class="btn-danger" style="flex:1" onclick="closeMonth()">Confirmar</button>
+    <div style="display:flex;gap:10px">
+      <button class="btn-outline" onclick="closeModal('confirm-modal')">Cancelar</button>
+      <button class="btn-danger" style="flex:1;border-radius:12px;padding:12px" onclick="closeMonth()">Confirmar</button>
     </div>
   </div>
 </div>
 
+<div id="toast"></div>
+
 <script>
-const SUPABASE_URL = 'https://dvqjmijtzdhznymwxhjz.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2cWptaWp0emRoem55bXd4aGp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1ODA1OTIsImV4cCI6MjA5ODE1NjU5Mn0.7c1S2pUiX0YiQhF2kAlQBPW63TbJJ5oFzkNH-Zq5QoQ';
+const SB_URL='https://dvqjmijtzdhznymwxhjz.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2cWptaWp0emRoem55bXd4aGp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1ODA1OTIsImV4cCI6MjA5ODE1NjU5Mn0.7c1S2pUiX0YiQhF2kAlQBPW63TbJJ5oFzkNH-Zq5QoQ';
+const H={'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
 
-const H = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY };
-
-async function db(path, method='GET', body=null) {
-  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
-    method, headers: { ...H, ...(method!=='GET' ? {'Prefer':'return=representation'} : {}) },
-    body: body ? JSON.stringify(body) : null
-  });
-  if (!r.ok) { const e = await r.text(); console.error(e); throw new Error(e); }
-  return method === 'DELETE' ? null : r.json();
+async function db(path,method='GET',body=null){
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{method,headers:H,body:body?JSON.stringify(body):null});
+  if(!r.ok)throw new Error(await r.text());
+  if(method==='DELETE')return null;
+  const t=await r.text();return t?JSON.parse(t):null;
 }
 
-// ── State ──
-let expenses = [], fixedExpenses = [], settings = { income: 21000, reserve: 5000 };
-let currentTab = 'home';
-
-// ── Categories ──
-const CATS = [
-  { id:'alimentacao', icon:'🍽', label:'Alimentação',  words:['restaurante','comida','almoço','jantar','lanche','café','padaria','mcdonalds','burger','pizza','sushi','ifood','delivery','mercado','supermercado','feira'] },
-  { id:'transporte',  icon:'🚗', label:'Transporte',   words:['uber','99','taxi','táxi','gasolina','combustivel','estacionamento','onibus','metro','metrô','trem','ônibus','passagem','pedágio'] },
-  { id:'lazer',       icon:'🎭', label:'Lazer',        words:['cinema','teatro','show','ingresso','netflix','spotify','disney','hbo','prime','jogo','bar','balada','festa','viagem','hotel'] },
-  { id:'saude',       icon:'💊', label:'Saúde',        words:['farmácia','farmacia','remédio','remedio','médico','medico','consulta','exame','academia','gym','dentista','plano'] },
-  { id:'compras',     icon:'🛍', label:'Compras',      words:['roupa','sapato','tênis','tenis','amazon','shopee','magazine','americanas','eletronico','celular','notebook','presente'] },
-  { id:'servicos',    icon:'📱', label:'Serviços',     words:['luz','agua','água','internet','telefone','conta','boleto','serviço','servico','seguro','condominio','condomínio'] },
-  { id:'educacao',    icon:'📚', label:'Educação',     words:['escola','faculdade','curso','livro','material','mensalidade','aula','inglês','ingles'] },
-  { id:'outros',      icon:'•',  label:'Outros',       words:[] },
+const CATS=[
+  {id:'alimentacao',icon:'🍽',label:'Alimentação',words:['restaurante','comida','almoço','jantar','lanche','café','padaria','mcdonalds','burger','pizza','sushi','ifood','delivery','mercado','supermercado','feira']},
+  {id:'transporte', icon:'🚗',label:'Transporte', words:['uber','99','taxi','táxi','gasolina','combustivel','estacionamento','onibus','metro','metrô','trem','passagem','pedágio']},
+  {id:'lazer',      icon:'🎭',label:'Lazer',      words:['cinema','teatro','show','ingresso','netflix','spotify','disney','hbo','prime','jogo','bar','balada','festa','viagem','hotel']},
+  {id:'saude',      icon:'💊',label:'Saúde',      words:['farmácia','farmacia','remédio','remedio','médico','medico','consulta','exame','academia','gym','dentista','plano']},
+  {id:'compras',    icon:'🛍',label:'Compras',    words:['roupa','sapato','tênis','tenis','amazon','shopee','magazine','americanas','eletronico','celular','notebook','presente']},
+  {id:'servicos',   icon:'📱',label:'Serviços',   words:['luz','agua','água','internet','telefone','conta','boleto','seguro','condominio','condomínio']},
+  {id:'educacao',   icon:'📚',label:'Educação',   words:['escola','faculdade','curso','livro','material','mensalidade','aula','inglês','ingles']},
+  {id:'outros',     icon:'•', label:'Outros',     words:[]},
 ];
 
-function parseCat(text) {
-  const t = text.toLowerCase();
-  for (const c of CATS) if (c.words.some(w => t.includes(w))) return c;
-  return CATS[CATS.length-1];
+function parseInput(text){
+  const m=text.match(/[\d]+[.,]?\d*/);if(!m)return null;
+  const amount=parseFloat(m[0].replace(',','.'));if(!amount||amount<=0)return null;
+  const rest=text.toLowerCase().replace(m[0],'');
+  return{amount,cat:CATS.find(c=>c.words.some(w=>rest.includes(w)))||CATS[7]};
 }
-
-function parseInput(text) {
-  const t = text.trim();
-  const m = t.match(/[\d]+[.,]?\d*/);
-  if (!m) return null;
-  const amount = parseFloat(m[0].replace(',','.'));
-  if (!amount || amount <= 0) return null;
-  return { amount, category: parseCat(t.replace(m[0],'')) };
+function fmt(n){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n||0)}
+function fmtDt(iso){return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+function getWeekBounds(){
+  const now=new Date();now.setHours(0,0,0,0);
+  const d=now.getDay(),diff=now.getDate()-d+(d===0?-6:1);
+  const mon=new Date(now);mon.setDate(diff);
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);sun.setHours(23,59,59,999);
+  return{start:mon,end:sun};
 }
-
-// ── Format ──
-function fmt(n) { return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n||0); }
-function fmtDate(iso) { return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
-
-function getWeekBounds() {
-  const now = new Date(); now.setHours(0,0,0,0);
-  const day = now.getDay(); const diff = now.getDate() - day + (day===0?-6:1);
-  const mon = new Date(now); mon.setDate(diff);
-  const sun = new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
-  return { start: mon, end: sun };
+function getMonthBounds(){
+  const n=new Date();
+  return{start:new Date(n.getFullYear(),n.getMonth(),1),end:new Date(n.getFullYear(),n.getMonth()+1,0,23,59,59)};
 }
+function getMonthKey(){const n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1)}
 
-function getMonthBounds() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end   = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59);
-  return { start, end };
-}
+let expenses=[],fixed=[],settings={income:21000,reserve:5000,weekly_mode:'auto',weekly_manual:null},monthOverrides={};
+let currentTab='home',lastLen=0,editingFixed=null,parsed=null;
 
-// ── Load ──
-async function loadAll() {
-  try {
-    const [e, f, s] = await Promise.all([
+async function loadAll(){
+  try{
+    const[e,f,s,o]=await Promise.all([
       db('expenses?order=date.desc'),
       db('fixed_expenses?order=created_at.asc'),
       db('settings?id=eq.1'),
+      db('month_overrides?month_key=eq.'+getMonthKey()),
     ]);
-    expenses     = e || [];
-    fixedExpenses= f || [];
-    settings     = s?.[0] || { income:21000, reserve:5000 };
+    expenses=e||[];fixed=f||[];
+    settings=s?.[0]||{income:21000,reserve:5000,weekly_mode:'auto',weekly_manual:null};
+    if(!settings.weekly_mode)settings.weekly_mode='auto';
+    monthOverrides={};(o||[]).forEach(r=>monthOverrides[r.fixed_id]=r.amount);
+    lastLen=expenses.length;
     render();
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     switchTab('home');
-  } catch(err) {
-    document.getElementById('loading').innerHTML =
-      '<div style="color:#C0392B;padding:24px;text-align:center">Erro ao conectar. Verifique a internet.</div>';
+  }catch(err){
+    document.getElementById('loading').innerHTML='<div style="color:#C0392B;padding:32px;text-align:center;font-size:14px">Erro ao conectar:<br>'+err.message+'</div>';
   }
 }
 
-// ── Render ──
-function render() {
-  renderHome();
-  if (currentTab === 'fixed')  renderFixed();
-  if (currentTab === 'config') renderConfig();
+function getEffectiveFixed(){
+  return fixed.map(f=>({...f,effectiveAmount:monthOverrides[f.id]!==undefined?monthOverrides[f.id]:f.amount}));
+}
+function getAutoWeekly(){
+  const totalFixed=getEffectiveFixed().reduce((s,f)=>s+f.effectiveAmount,0);
+  return Math.max(0,(settings.income-totalFixed-settings.reserve)/4);
+}
+function getWeeklyBudget(){
+  if(settings.weekly_mode==='manual'&&settings.weekly_manual>0)return settings.weekly_manual;
+  return getAutoWeekly();
 }
 
-function renderHome() {
-  const totalFixed   = fixedExpenses.reduce((s,f)=>s+f.amount,0);
-  const weeklyBudget = Math.max(0,(settings.income - totalFixed - settings.reserve)/4);
-  const { start, end } = getWeekBounds();
-  const thisWeek = expenses.filter(e=>{ const d=new Date(e.date); return d>=start&&d<=end; });
-  const weekTotal = thisWeek.reduce((s,e)=>s+e.amount,0);
-  const remaining = Math.max(0, weeklyBudget - weekTotal);
-  const pct       = weeklyBudget > 0 ? Math.min(weekTotal/weeklyBudget,1) : 0;
-  const over      = weekTotal > weeklyBudget;
+function render(){renderHome();if(currentTab==='fixed')renderFixed();if(currentTab==='config')renderConfig();}
 
-  const riskColor = pct<.6?'#2D6A4F':pct<.85?'#B7791F':'#C0392B';
-  const riskLabel = pct<.6?'tranquilo':pct<.85?'atenção':pct<1?'alerta':'estourou';
-
-  document.getElementById('home-remaining').textContent = fmt(remaining);
-  document.getElementById('home-remaining').style.color = over?'#C0392B':'#1a1a1a';
-  document.getElementById('home-budget').textContent    = fmt(weeklyBudget);
-  const riskEl = document.getElementById('home-risk');
-  riskEl.textContent   = riskLabel;
-  riskEl.style.color   = riskColor;
-  const bar = document.getElementById('home-bar');
-  bar.style.width      = (pct*100)+'%';
-  bar.style.background = riskColor;
-  document.getElementById('home-spent').textContent = fmt(weekTotal)+' gasto';
-  document.getElementById('home-pct').textContent   = Math.round(pct*100)+'%';
-
-  // Expense list
-  const list = document.getElementById('expense-list');
-  if (!thisWeek.length) {
-    list.innerHTML = '<div style="padding:16px 24px;color:var(--muted);font-size:14px">Nenhum gasto ainda esta semana.</div>';
-    return;
-  }
-  list.innerHTML = thisWeek.map((e,i)=>{
-    const cat = CATS.find(c=>c.id===e.category)||CATS[7];
-    return `
-      <div class="exp-row">
-        <div class="flex" style="align-items:center">
-          <span class="exp-icon">${cat.icon}</span>
-          <div>
-            <div class="exp-name">${cat.label}</div>
-            <div class="exp-date">${fmtDate(e.date)}</div>
-          </div>
-        </div>
-        <div class="flex" style="align-items:center">
-          <span class="exp-amt">${fmt(e.amount)}</span>
-          <button class="btn-icon" onclick="delExpense(${e.id})">×</button>
-        </div>
-      </div>
-      ${i<thisWeek.length-1?'<div class="divider"></div>':''}
-    `;
+function renderHome(){
+  const wb=getWeeklyBudget();
+  const{start,end}=getWeekBounds();
+  const tw=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;});
+  const wt=tw.reduce((s,e)=>s+e.amount,0);
+  const rem=Math.max(0,wb-wt);
+  const over=wt>wb;
+  const pct=wb>0?Math.min(wt/wb,1):0;
+  const rc=pct<.6?'#2D6A4F':pct<.85?'#B7791F':'#C0392B';
+  const rl=pct<.6?'tranquilo':pct<.85?'atenção':pct<1?'alerta':'estourou';
+  document.getElementById('home-remaining').textContent=fmt(rem);
+  document.getElementById('home-remaining').style.color=over?'#C0392B':'#1a1a1a';
+  document.getElementById('home-budget').textContent=fmt(wb);
+  const re=document.getElementById('home-risk');re.textContent=rl;re.style.color=rc;
+  document.getElementById('home-mode-badge').textContent=settings.weekly_mode==='manual'?'manual':'';
+  const bar=document.getElementById('home-bar');bar.style.width=(pct*100)+'%';bar.style.background=rc;
+  document.getElementById('home-spent').textContent=fmt(wt)+' gasto';
+  document.getElementById('home-pct').textContent=Math.round(pct*100)+'%';
+  const list=document.getElementById('expense-list');
+  if(!tw.length){list.innerHTML='<div style="padding:16px 24px;color:var(--muted);font-size:14px">Nenhum gasto ainda esta semana.</div>';return;}
+  list.innerHTML=tw.map((e,i)=>{
+    const cat=CATS.find(c=>c.id===e.category)||CATS[7];
+    return`<div class="exp-row"><div style="display:flex;align-items:center"><span style="font-size:20px;margin-right:12px">${cat.icon}</span><div><div style="font-size:14px;font-weight:500">${cat.label}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${fmtDt(e.date)}</div></div></div><div style="display:flex;align-items:center;gap:12px"><span style="font-weight:700;font-size:15px">${fmt(e.amount)}</span><button class="btn-icon" onclick="delExpense(${e.id})">×</button></div></div>${i<tw.length-1?'<div class="divider"></div>':''}`;
   }).join('');
 }
 
-function renderFixed() {
-  const totalFixed   = fixedExpenses.reduce((s,f)=>s+f.amount,0);
-  const weeklyBudget = Math.max(0,(settings.income-totalFixed-settings.reserve)/4);
-  document.getElementById('f-income').textContent  = fmt(settings.income);
-  document.getElementById('f-fixed').textContent   = '− '+fmt(totalFixed);
-  document.getElementById('f-reserve').textContent = '− '+fmt(settings.reserve);
-  document.getElementById('f-weekly').textContent  = fmt(weeklyBudget);
-
-  const list = document.getElementById('fixed-list');
-  if (!fixedExpenses.length) {
-    list.innerHTML = '<div style="padding:16px 24px;color:var(--muted);font-size:14px">Nenhum fixo cadastrado.</div>';
-    return;
-  }
-  list.innerHTML = fixedExpenses.map((f,i)=>`
-    <div class="exp-row">
-      <span style="font-size:14px;font-weight:500">${f.name}</span>
-      <div class="flex" style="align-items:center">
-        <span style="font-weight:700;color:#B7791F;margin-right:12px">${fmt(f.amount)}</span>
-        <button class="btn-icon" onclick="delFixed(${f.id})">×</button>
+function renderFixed(){
+  const ef=getEffectiveFixed();
+  const totalFixed=ef.reduce((s,f)=>s+f.effectiveAmount,0);
+  document.getElementById('f-income').textContent=fmt(settings.income);
+  document.getElementById('f-fixed').textContent='− '+fmt(totalFixed);
+  document.getElementById('f-reserve').textContent='− '+fmt(settings.reserve);
+  document.getElementById('f-weekly').textContent=fmt(getAutoWeekly());
+  const list=document.getElementById('fixed-list');
+  if(!ef.length){list.innerHTML='<div style="padding:16px 24px;color:var(--muted);font-size:14px">Nenhum fixo cadastrado.</div>';return;}
+  list.innerHTML=ef.map((f,i)=>`
+    <div class="exp-row" onclick="openEditFixed(${f.id})" style="cursor:pointer">
+      <div><div style="font-size:14px;font-weight:500">${f.name}</div>
+      <div style="font-size:11px;color:${monthOverrides[f.id]!==undefined?'var(--warn)':'var(--muted)'};margin-top:2px">${monthOverrides[f.id]!==undefined?'base: '+fmt(f.amount)+' · editado este mês':'toque para editar'}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-weight:700;color:#B7791F">${fmt(f.effectiveAmount)}</span>
+        <span style="color:var(--muted);font-size:16px">›</span>
       </div>
-    </div>
-    ${i<fixedExpenses.length-1?'<div class="divider"></div>':''}
-  `).join('') + `
-    <div class="divider"></div>
-    <div class="exp-row">
-      <span style="color:var(--muted);font-size:13px">Total</span>
-      <span style="font-weight:800;font-size:17px;color:#B7791F">${fmt(totalFixed)}</span>
-    </div>
-  `;
+    </div>${i<ef.length-1?'<div class="divider"></div>':''}
+  `).join('')+`<div class="divider"></div><div class="exp-row"><span style="color:var(--muted);font-size:13px">Total este mês</span><span style="font-weight:800;font-size:17px;color:#B7791F">${fmt(totalFixed)}</span></div>`;
 }
 
-function renderConfig() {
-  document.getElementById('cfg-income-cur').textContent  = 'atual: '+fmt(settings.income);
-  document.getElementById('cfg-reserve-cur').textContent = 'atual: '+fmt(settings.reserve);
-
-  // Month summary
-  const { start, end } = getMonthBounds();
-  const monthExp = expenses.filter(e=>{ const d=new Date(e.date); return d>=start&&d<=end; });
-  const monthTotal = monthExp.reduce((s,e)=>s+e.amount,0);
-  const mo = new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
-  document.getElementById('month-summary').textContent =
-    `${mo.charAt(0).toUpperCase()+mo.slice(1)}: ${fmt(monthTotal)} em ${monthExp.length} lançamento(s)`;
+function renderConfig(){
+  // Mode tabs
+  const isManual=settings.weekly_mode==='manual';
+  document.getElementById('mode-auto-btn').classList.toggle('active',!isManual);
+  document.getElementById('mode-manual-btn').classList.toggle('active',isManual);
+  document.getElementById('mode-auto-panel').classList.toggle('hidden',isManual);
+  document.getElementById('mode-manual-panel').classList.toggle('hidden',!isManual);
+  document.getElementById('cfg-auto-weekly').textContent=fmt(getAutoWeekly());
+  if(isManual){
+    document.getElementById('cfg-manual-cur').textContent=settings.weekly_manual?'atual: '+fmt(settings.weekly_manual):'nenhuma meta manual definida';
+  }
+  document.getElementById('cfg-income-cur').textContent='atual: '+fmt(settings.income);
+  document.getElementById('cfg-reserve-cur').textContent='atual: '+fmt(settings.reserve);
+  const{start,end}=getMonthBounds();
+  const me=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;});
+  const mt=me.reduce((s,e)=>s+e.amount,0);
+  const mo=new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  document.getElementById('month-summary').textContent=mo.charAt(0).toUpperCase()+mo.slice(1)+': '+fmt(mt)+' em '+me.length+' lançamento(s)';
 }
 
-// ── Actions ──
-let parsed = null;
+function setMode(mode){
+  settings.weekly_mode=mode;
+  renderConfig();renderHome();
+}
 
-document.getElementById('quick-input').addEventListener('input', function() {
-  parsed = parseInput(this.value);
-  const previewRow = document.getElementById('preview-row');
-  const btnAdd     = document.getElementById('btn-add-expense');
-  const errEl      = document.getElementById('parse-error');
-
-  if (parsed) {
-    previewRow.classList.remove('hidden');
-    btnAdd.classList.remove('hidden');
-    errEl.classList.add('hidden');
-    document.getElementById('preview-cat').textContent = parsed.category.icon+' '+parsed.category.label;
-    document.getElementById('preview-amt').textContent = fmt(parsed.amount);
-  } else {
-    previewRow.classList.add('hidden');
-    btnAdd.classList.add('hidden');
-    errEl.classList.toggle('hidden', this.value.length === 0);
+// ── Quick add ──
+document.getElementById('quick-input').addEventListener('input',function(){
+  parsed=parseInput(this.value);
+  const pr=document.getElementById('preview-row'),ba=document.getElementById('btn-add-expense'),er=document.getElementById('parse-error');
+  if(parsed){
+    pr.classList.remove('hidden');pr.style.display='flex';ba.classList.remove('hidden');er.classList.add('hidden');
+    document.getElementById('preview-cat').textContent=parsed.cat.icon+' '+parsed.cat.label;
+    document.getElementById('preview-amt').textContent=fmt(parsed.amount);
+  }else{
+    pr.classList.add('hidden');ba.classList.add('hidden');er.classList.toggle('hidden',this.value.length===0);
   }
 });
+document.getElementById('quick-input').addEventListener('keydown',e=>{if(e.key==='Enter')addExpense();});
+document.getElementById('btn-add-expense').addEventListener('click',addExpense);
 
-document.getElementById('quick-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') addExpense();
-});
-
-document.getElementById('btn-add-expense').addEventListener('click', addExpense);
-
-async function addExpense() {
-  if (!parsed) return;
-  try {
-    const [res] = await db('expenses', 'POST', { amount: parsed.amount, category: parsed.category.id, date: new Date().toISOString() });
-    expenses.unshift(res);
-    showToast(parsed.category.icon+' '+fmt(parsed.amount)+' lançado');
-    document.getElementById('quick-input').value = '';
+async function addExpense(){
+  if(!parsed)return;
+  try{
+    const res=await db('expenses','POST',{amount:parsed.amount,category:parsed.cat.id,date:new Date().toISOString()});
+    const n=Array.isArray(res)?res[0]:res;
+    expenses.unshift(n);lastLen++;
+    showToast(parsed.cat.icon+' '+fmt(parsed.amount)+' lançado');
+    document.getElementById('quick-input').value='';
     document.getElementById('preview-row').classList.add('hidden');
     document.getElementById('btn-add-expense').classList.add('hidden');
-    parsed = null;
-    pulse();
-    renderHome();
-  } catch { showToast('Erro ao lançar. Tente novamente.'); }
+    parsed=null;doPulse();renderHome();
+  }catch(e){showToast('Erro: '+e.message);}
 }
 
-async function delExpense(id) {
-  await db('expenses?id=eq.'+id, 'DELETE');
-  expenses = expenses.filter(e=>e.id!==id);
-  pulse();
-  renderHome();
+async function delExpense(id){
+  await db('expenses?id=eq.'+id,'DELETE');
+  expenses=expenses.filter(e=>e.id!==id);lastLen--;doPulse();renderHome();
 }
 
-async function addFixed() {
-  const name = document.getElementById('fixed-name').value.trim();
-  const amt  = parseFloat(document.getElementById('fixed-amt').value);
-  if (!name || !amt) return;
-  const [res] = await db('fixed_expenses','POST',{name,amount:amt});
-  fixedExpenses.push(res);
-  document.getElementById('fixed-name').value = '';
-  document.getElementById('fixed-amt').value  = '';
-  showToast('Fixo adicionado');
-  renderFixed();
-  renderHome();
+// ── Fixed ──
+async function addFixed(){
+  const name=document.getElementById('fixed-name').value.trim();
+  const amt=parseFloat(document.getElementById('fixed-amt').value);
+  if(!name||!amt)return;
+  const res=await db('fixed_expenses','POST',{name,amount:amt});
+  fixed.push(Array.isArray(res)?res[0]:res);
+  document.getElementById('fixed-name').value='';document.getElementById('fixed-amt').value='';
+  showToast('Fixo adicionado');renderFixed();renderHome();
+}
+function openEditFixed(id){
+  const f=fixed.find(x=>x.id===id);if(!f)return;
+  editingFixed=f;
+  document.getElementById('edit-modal-title').textContent=f.name;
+  document.getElementById('edit-base').value=f.amount;
+  document.getElementById('edit-month').value=monthOverrides[f.id]!==undefined?monthOverrides[f.id]:'';
+  document.getElementById('edit-modal').classList.add('open');
+}
+async function saveFixedEdit(){
+  if(!editingFixed)return;
+  const base=parseFloat(document.getElementById('edit-base').value);
+  const monthVal=document.getElementById('edit-month').value;
+  if(base&&base!==editingFixed.amount){
+    await db('fixed_expenses?id=eq.'+editingFixed.id,'PATCH',{amount:base});
+    fixed=fixed.map(f=>f.id===editingFixed.id?{...f,amount:base}:f);
+  }
+  if(monthVal!==''){
+    const mv=parseFloat(monthVal),mk=getMonthKey();
+    const existing=await db('month_overrides?fixed_id=eq.'+editingFixed.id+'&month_key=eq.'+mk);
+    if(existing&&existing.length)await db('month_overrides?fixed_id=eq.'+editingFixed.id+'&month_key=eq.'+mk,'PATCH',{amount:mv});
+    else await db('month_overrides','POST',{fixed_id:editingFixed.id,month_key:mk,amount:mv});
+    monthOverrides[editingFixed.id]=mv;
+  }else{
+    await db('month_overrides?fixed_id=eq.'+editingFixed.id+'&month_key=eq.'+getMonthKey(),'DELETE');
+    delete monthOverrides[editingFixed.id];
+  }
+  closeEditModal();showToast('Fixo atualizado');renderFixed();renderHome();
+}
+async function deleteFixed(){
+  if(!editingFixed)return;
+  await db('fixed_expenses?id=eq.'+editingFixed.id,'DELETE');
+  await db('month_overrides?fixed_id=eq.'+editingFixed.id,'DELETE');
+  fixed=fixed.filter(f=>f.id!==editingFixed.id);delete monthOverrides[editingFixed.id];
+  closeEditModal();showToast('Fixo removido');renderFixed();renderHome();
+}
+function closeEditModal(){document.getElementById('edit-modal').classList.remove('open');editingFixed=null;}
+
+// ── Settings ──
+async function saveSettings(){
+  const inc=parseFloat(document.getElementById('cfg-income').value)||settings.income;
+  const res=parseFloat(document.getElementById('cfg-reserve').value)||settings.reserve;
+  const manualVal=document.getElementById('cfg-manual-val').value;
+  const manual=manualVal?parseFloat(manualVal):settings.weekly_manual;
+  const mode=settings.weekly_mode;
+  await db('settings?id=eq.1','PATCH',{income:inc,reserve:res,weekly_mode:mode,weekly_manual:manual||null});
+  settings={...settings,income:inc,reserve:res,weekly_mode:mode,weekly_manual:manual||null};
+  document.getElementById('cfg-income').value='';
+  document.getElementById('cfg-reserve').value='';
+  document.getElementById('cfg-manual-val').value='';
+  showToast('Configurações salvas');render();
 }
 
-async function delFixed(id) {
-  await db('fixed_expenses?id=eq.'+id,'DELETE');
-  fixedExpenses = fixedExpenses.filter(f=>f.id!==id);
-  renderFixed();
-  renderHome();
-}
-
-async function saveSettings() {
-  const income  = parseFloat(document.getElementById('cfg-income').value)  || settings.income;
-  const reserve = parseFloat(document.getElementById('cfg-reserve').value) || settings.reserve;
-  await db('settings?id=eq.1','PATCH',{income,reserve});
-  settings = { income, reserve };
-  document.getElementById('cfg-income').value  = '';
-  document.getElementById('cfg-reserve').value = '';
-  showToast('Configurações salvas');
-  render();
-}
-
-function confirmCloseMonth() {
-  const { start, end } = getMonthBounds();
-  const monthExp   = expenses.filter(e=>{ const d=new Date(e.date); return d>=start&&d<=end; });
-  const monthTotal = monthExp.reduce((s,e)=>s+e.amount,0);
-  const mo = new Date().toLocaleString('pt-BR',{month:'long'});
-  document.getElementById('confirm-text').textContent =
-    `Isso vai apagar todos os ${monthExp.length} lançamentos de ${mo} (${fmt(monthTotal)} no total). Esta ação não pode ser desfeita.`;
+// ── Close month ──
+function confirmCloseMonth(){
+  const{start,end}=getMonthBounds();
+  const me=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;});
+  const mt=me.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('confirm-text').textContent=`Vai apagar ${me.length} lançamento(s) (${fmt(mt)}) e resetar valores editados dos fixos.`;
   document.getElementById('confirm-modal').classList.add('open');
 }
+async function closeMonth(){
+  closeModal('confirm-modal');
+  const{start,end}=getMonthBounds();
+  const ids=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;}).map(e=>e.id);
+  if(ids.length){await db('expenses?id=in.('+ids.join(',')+')', 'DELETE');expenses=expenses.filter(e=>!ids.includes(e.id));lastLen-=ids.length;}
+  await db('month_overrides?month_key=eq.'+getMonthKey(),'DELETE');
+  monthOverrides={};showToast('Mês fechado ✓');doPulse();render();
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-async function closeMonth() {
-  closeModal();
-  // Delete all expenses from this month
-  const { start, end } = getMonthBounds();
-  const monthIds = expenses
-    .filter(e=>{ const d=new Date(e.date); return d>=start&&d<=end; })
-    .map(e=>e.id);
-  if (monthIds.length) {
-    await db('expenses?id=in.('+monthIds.join(',')+')', 'DELETE');
-    expenses = expenses.filter(e=>!monthIds.includes(e.id));
+// ── AI ──
+let aiHistory=[];
+function buildSystemPrompt(){
+  const wb=getWeeklyBudget();
+  const{start,end}=getWeekBounds();
+  const tw=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;});
+  const wt=tw.reduce((s,e)=>s+e.amount,0);
+  const{start:ms,end:me}=getMonthBounds();
+  const mt=expenses.filter(e=>{const d=new Date(e.date);return d>=ms&&d<=me;}).reduce((s,e)=>s+e.amount,0);
+  const ef=getEffectiveFixed();
+  const tf=ef.reduce((s,f)=>s+f.effectiveAmount,0);
+  const modeInfo=settings.weekly_mode==='manual'?`Meta manual definida em ${fmt(settings.weekly_manual)}`:`Meta automática calculada por fórmula`;
+  return`Você é uma consultora financeira pessoal e direta de um casal brasileiro. Responda sempre em português, de forma curta e objetiva (máximo 3 parágrafos). Use emojis com moderação.
+
+SITUAÇÃO ATUAL:
+- Renda mensal: ${fmt(settings.income)}
+- Gastos fixos (mês): ${fmt(tf)} — ${ef.map(f=>f.name+': '+fmt(f.effectiveAmount)).join(', ')||'nenhum'}
+- Reserva: ${fmt(settings.reserve)}
+- Meta semanal: ${fmt(wb)} (${modeInfo})
+- Gasto no cartão esta semana: ${fmt(wt)} (${Math.round(wb>0?wt/wb*100:0)}% da meta)
+- Gasto no cartão este mês: ${fmt(mt)}
+
+Analise perguntas sobre gastos ou dê visão geral do mês. Seja honesta e direta.`;
+}
+
+async function sendAI(){
+  const input=document.getElementById('ai-input');
+  const text=input.value.trim();if(!text)return;
+  input.value='';
+  const msgs=document.getElementById('ai-messages');
+  msgs.innerHTML+=`<div class="ai-bubble user">${text}</div><div class="ai-bubble bot typing" id="ai-typing">Analisando...</div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+  aiHistory.push({role:'user',content:text});
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:buildSystemPrompt(),messages:aiHistory})
+    });
+    const data=await res.json();
+    const reply=data.content?.[0]?.text||'Não consegui responder agora.';
+    aiHistory.push({role:'assistant',content:reply});
+    document.getElementById('ai-typing').remove();
+    msgs.innerHTML+=`<div class="ai-bubble bot">${reply.replace(/\n/g,'<br>')}</div>`;
+    msgs.scrollTop=msgs.scrollHeight;
+  }catch(e){
+    const t=document.getElementById('ai-typing');if(t)t.textContent='Erro ao conectar com a IA.';
   }
-  showToast('Mês fechado! Novo mês começando.');
-  pulse();
-  render();
 }
+document.getElementById('ai-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendAI();});
 
-function closeModal() {
-  document.getElementById('confirm-modal').classList.remove('open');
-}
-
-// ── Tab switching ──
-function switchTab(tab) {
-  currentTab = tab;
-  ['home','fixed','config'].forEach(t => {
-    document.getElementById('tab-'+t).classList.toggle('hidden', t!==tab);
-    document.getElementById('nav-'+t).classList.toggle('active', t===tab);
+// ── Tabs ──
+function switchTab(tab){
+  currentTab=tab;
+  ['home','ia','fixed','config'].forEach(t=>{
+    const el=document.getElementById('tab-'+t);
+    if(t===tab){el.classList.remove('hidden');if(t==='ia')el.style.display='flex';}
+    else{el.classList.add('hidden');if(t==='ia')el.style.display='none';}
+    document.getElementById('nav-'+t).classList.toggle('active',t===tab);
   });
-  if (tab==='fixed')  renderFixed();
-  if (tab==='config') renderConfig();
+  if(tab==='fixed')renderFixed();
+  if(tab==='config')renderConfig();
 }
 
-// ── Sync pulse ──
-function pulse() {
-  const dot = document.getElementById('sync-dot');
-  dot.classList.add('pulse');
-  setTimeout(()=>dot.classList.remove('pulse'), 800);
-}
+// ── Sync & utils ──
+function doPulse(){const d=document.getElementById('sync-dot');d.classList.add('pulse');setTimeout(()=>d.classList.remove('pulse'),800);}
+setInterval(async()=>{
+  try{
+    const e=await db('expenses?order=date.desc');
+    if(e&&e.length!==lastLen){lastLen=e.length;expenses=e;doPulse();renderHome();}
+  }catch{}
+},6000);
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 
-// ── Toast ──
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2000);
-}
-
-// ── Real-time polling ──
-let lastCount = 0;
-setInterval(async ()=>{
-  if (document.hidden) return;
-  try {
-    const e = await db('expenses?order=date.desc');
-    if (e && e.length !== lastCount) {
-      lastCount = e.length;
-      expenses = e;
-      pulse();
-      renderHome();
-    }
-  } catch {}
-}, 6000);
-
-// ── Init ──
 loadAll();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
 </script>
 </body>
 </html>
