@@ -227,6 +227,19 @@ nav button span{font-size:20px}
           <input type="number" id="cfg-reserve" style="background:transparent;border:none;outline:none;font-size:18px;font-weight:600;color:var(--ink);width:100%"/>
         </div>
       </div>
+      <div>
+        <div class="label" style="margin-bottom:8px">início da semana</div>
+        <select id="cfg-week-start" class="input-sm" style="cursor:pointer">
+          <option value="0">Domingo</option>
+          <option value="1">Segunda-feira</option>
+          <option value="2">Terça-feira</option>
+          <option value="3">Quarta-feira</option>
+          <option value="4">Quinta-feira</option>
+          <option value="5">Sexta-feira</option>
+          <option value="6">Sábado</option>
+        </select>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">Define o início e fim de cada semana para o cálculo da meta.</div>
+      </div>
       <button class="btn" onclick="saveSettings()" style="margin-top:0">Salvar configurações</button>
     </div>
 
@@ -315,17 +328,25 @@ function parseInput(text){
 function fmt(n){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n||0)}
 function fmtDt(iso){return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function getWeekBounds(){
-  const now=new Date();now.setHours(0,0,0,0);
-  const d=now.getDay(),diff=now.getDate()-d+(d===0?-6:1);
-  const mon=new Date(now);mon.setDate(diff);
-  const sun=new Date(mon);sun.setDate(mon.getDate()+6);sun.setHours(23,59,59,999);
-  return{start:mon,end:sun};
+  // Semana configurável — usa settings.week_start (0=dom,1=seg,...,6=sab)
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const startDay=settings.week_start||0; // padrão domingo
+  const diff=(today.getDay()-startDay+7)%7;
+  const start=new Date(today);start.setDate(today.getDate()-diff);start.setHours(0,0,0,0);
+  const end=new Date(start);end.setDate(start.getDate()+6);end.setHours(23,59,59,999);
+  return{start,end};
 }
 function getMonthBounds(){
   const n=new Date();
-  return{start:new Date(n.getFullYear(),n.getMonth(),1),end:new Date(n.getFullYear(),n.getMonth()+1,0,23,59,59)};
+  return{start:new Date(n.getFullYear(),n.getMonth(),1,0,0,0),end:new Date(n.getFullYear(),n.getMonth()+1,0,23,59,59)};
 }
 function getMonthKey(){const n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1)}
+// Comparar datas em local time (ignorar UTC offset)
+function toLocalDay(iso){
+  const d=new Date(iso);
+  return new Date(d.getFullYear(),d.getMonth(),d.getDate(),d.getHours(),d.getMinutes(),d.getSeconds());
+}
 
 let expenses=[],fixed=[],settings={income:21000,reserve:5000,weekly_mode:'auto',weekly_manual:null},monthOverrides={};
 let currentTab='home',lastLen=0,editingFixed=null,parsed=null;
@@ -339,7 +360,8 @@ async function loadAll(){
       db('month_overrides?month_key=eq.'+getMonthKey()),
     ]);
     expenses=e||[];fixed=f||[];
-    settings=s?.[0]||{income:21000,reserve:5000,weekly_mode:'auto',weekly_manual:null};
+    settings=s?.[0]||{income:21000,reserve:5000,weekly_mode:'auto',weekly_manual:null,week_start:0};
+    if(settings.week_start===undefined||settings.week_start===null)settings.week_start=0;
     if(!settings.weekly_mode)settings.weekly_mode='auto';
     monthOverrides={};(o||[]).forEach(r=>monthOverrides[r.fixed_id]=r.amount);
     lastLen=expenses.length;
@@ -369,7 +391,7 @@ function render(){renderHome();if(currentTab==='fixed')renderFixed();if(currentT
 function renderHome(){
   const wb=getWeeklyBudget();
   const{start,end}=getWeekBounds();
-  const tw=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;});
+  const tw=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=start&&d<=end;});
   const wt=tw.reduce((s,e)=>s+e.amount,0);
   const rem=Math.max(0,wb-wt);
   const over=wt>wb;
@@ -426,8 +448,9 @@ function renderConfig(){
   }
   document.getElementById('cfg-income-cur').textContent='atual: '+fmt(settings.income);
   document.getElementById('cfg-reserve-cur').textContent='atual: '+fmt(settings.reserve);
+  document.getElementById('cfg-week-start').value=settings.week_start||0;
   const{start,end}=getMonthBounds();
-  const me=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;});
+  const me=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=start&&d<=end;});
   const mt=me.reduce((s,e)=>s+e.amount,0);
   const mo=new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
   document.getElementById('month-summary').textContent=mo.charAt(0).toUpperCase()+mo.slice(1)+': '+fmt(mt)+' em '+me.length+' lançamento(s)';
@@ -526,8 +549,9 @@ async function saveSettings(){
   const manualVal=document.getElementById('cfg-manual-val').value;
   const manual=manualVal?parseFloat(manualVal):settings.weekly_manual;
   const mode=settings.weekly_mode;
-  await db('settings?id=eq.1','PATCH',{income:inc,reserve:res,weekly_mode:mode,weekly_manual:manual||null});
-  settings={...settings,income:inc,reserve:res,weekly_mode:mode,weekly_manual:manual||null};
+  const ws=parseInt(document.getElementById('cfg-week-start').value);
+  await db('settings?id=eq.1','PATCH',{income:inc,reserve:res,weekly_mode:mode,weekly_manual:manual||null,week_start:ws});
+  settings={...settings,income:inc,reserve:res,weekly_mode:mode,weekly_manual:manual||null,week_start:ws};
   document.getElementById('cfg-income').value='';
   document.getElementById('cfg-reserve').value='';
   document.getElementById('cfg-manual-val').value='';
@@ -537,7 +561,7 @@ async function saveSettings(){
 // ── Close month ──
 function confirmCloseMonth(){
   const{start,end}=getMonthBounds();
-  const me=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;});
+  const me=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=start&&d<=end;});
   const mt=me.reduce((s,e)=>s+e.amount,0);
   document.getElementById('confirm-text').textContent=`Vai apagar ${me.length} lançamento(s) (${fmt(mt)}) e resetar valores editados dos fixos.`;
   document.getElementById('confirm-modal').classList.add('open');
@@ -545,7 +569,7 @@ function confirmCloseMonth(){
 async function closeMonth(){
   closeModal('confirm-modal');
   const{start,end}=getMonthBounds();
-  const ids=expenses.filter(e=>{const d=new Date(e.date);return d>=start&&d<=end;}).map(e=>e.id);
+  const ids=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=start&&d<=end;}).map(e=>e.id);
   if(ids.length){await db('expenses?id=in.('+ids.join(',')+')', 'DELETE');expenses=expenses.filter(e=>!ids.includes(e.id));lastLen-=ids.length;}
   await db('month_overrides?month_key=eq.'+getMonthKey(),'DELETE');
   monthOverrides={};showToast('Mês fechado ✓');doPulse();render();
@@ -559,12 +583,12 @@ function getFinancialContext(){
   const wb=getWeeklyBudget();
   const{start:ws,end:we}=getWeekBounds();
   const{start:ms,end:me}=getMonthBounds();
-  const tw=expenses.filter(e=>{const d=new Date(e.date);return d>=ws&&d<=we;});
+  const tw=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=ws&&d<=we;});
   const wt=tw.reduce((s,e)=>s+e.amount,0);
   const rem=Math.max(0,wb-wt);
   const over=wt>wb;
   const pct=wb>0?wt/wb:0;
-  const monthExp=expenses.filter(e=>{const d=new Date(e.date);return d>=ms&&d<=me;});
+  const monthExp=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=ms&&d<=me;});
   const mt=monthExp.reduce((s,e)=>s+e.amount,0);
   const ef=getEffectiveFixed();
   const tf=ef.reduce((s,f)=>s+f.effectiveAmount,0);
@@ -576,13 +600,12 @@ function getFinancialContext(){
   tw.forEach(e=>{catTotals[e.category]=(catTotals[e.category]||0)+e.amount;});
   const topCat=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
 
-  // Weekly history
+  // Weekly history (local time, semana dom→sab)
   const semanas={};
   expenses.forEach(e=>{
-    const d=new Date(e.date);d.setHours(0,0,0,0);
-    const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);
-    const mon=new Date(d);mon.setDate(diff);
-    const k=mon.toISOString().slice(0,10);
+    const d=toLocalDay(e.date);
+    const sun=new Date(d.getFullYear(),d.getMonth(),d.getDate()-d.getDay());
+    const k=sun.getFullYear()+'-'+String(sun.getMonth()+1).padStart(2,'0')+'-'+String(sun.getDate()).padStart(2,'0');
     semanas[k]=(semanas[k]||0)+e.amount;
   });
   const weekKeys=Object.keys(semanas).sort().reverse();
@@ -616,26 +639,75 @@ function analyzeLocally(text){
 
     if(val<=0) return'Não entendi o valor. Tente novamente, ex: "posso gastar 200 em roupas?"';
 
-    const msg=[];
-    if(pctUsado<0.6){
-      msg.push(`✅ Sim, à vontade! ${fmt(val)} representa só ${Math.round(pctVal*100)}% da meta semanal.`);
-      msg.push(`Sobrariam ${fmt(depois)} para o resto da semana — situação confortável.`);
-    } else if(pctUsado<0.85){
-      msg.push(`🟡 Cabe, mas com atenção. Após esse gasto vocês teriam ${fmt(depois)} para o resto da semana.`);
-      msg.push(`Isso deixaria ${Math.round(pctUsado*100)}% da meta usada — ainda ok, mas sem muito espaço.`);
-    } else if(val<=rem){
-      msg.push(`🟠 Tecnicamente cabe, mas ficaria apertado — restariam só ${fmt(depois)}.`);
-      msg.push(`Vocês estariam em ${Math.round(pctUsado*100)}% da meta. Recomendo só se for necessário ou prioridade real.`);
+    // Calcular posição no dia da semana (0=dom, 1=seg ... 6=sab)
+    // Semana vai de domingo a sábado
+    const startDay=settings.week_start||0;
+    const diaSemana=new Date().getDay();
+    const diasPassados=(diaSemana-startDay+7)%7; // dias desde início da semana
+    const diasRestantesSemana=6-diasPassados; // dias até fim da semana
+    const totalDias=7;
+
+    // Orçamento ideal por dia
+    const orcDiario=wb/totalDias;
+    // Quanto deveria ter gasto até agora (proporcional aos dias passados)
+    const gastoIdealAteHoje=orcDiario*(diasPassados+1);
+    // Quanto deveria sobrar para os dias restantes
+    const deveRestarParaFimSemana=orcDiario*diasRestantesSemana;
+    // Se gastar val, quanto sobraria por dia para o resto da semana
+    const sobrariaTotal=rem-val;
+    const porDiaRestante=diasRestantesSemana>0?sobrariaTotal/diasRestantesSemana:sobrariaTotal;
+
+    // Nível de risco AJUSTADO pelo momento da semana
+    // No início da semana (dom/seg/ter) ser mais conservador
+    // pois ainda há muitos dias com potencial de gastos
+    let limiteConfortavel, limiteAtencao;
+    if(diasPassados<=1){
+      // Domingo ou segunda: muito conservador — semana inteira pela frente
+      limiteConfortavel=0.25; // só 25% da meta é "tranquilo" logo no início
+      limiteAtencao=0.45;
+    } else if(diasPassados<=3){
+      // Terça a quinta: moderado
+      limiteConfortavel=0.4;
+      limiteAtencao=0.65;
     } else {
-      const falta=val-rem;
-      msg.push(`❌ Não cabe esta semana. Faltam ${fmt(falta)} no saldo disponível.`);
-      if(semRestantes>1) msg.push(`Mas ainda há ${semRestantes} semanas no mês — pode ser mais tranquilo na próxima.`);
-      else msg.push(`Esta é a última semana do mês. Avalie se realmente é necessário agora.`);
+      // Sexta a sábado: mais liberal, semana quase acabando
+      limiteConfortavel=0.6;
+      limiteAtencao=0.85;
     }
 
-    // Bonus: put in context of month
+    const nomeDia=['domingo','segunda','terça','quarta','quinta','sexta','sábado'][diaSemana];
+    const msg=[];
+
+    if(val>rem){
+      const falta=val-rem;
+      msg.push(`❌ Não cabe — faltam ${fmt(falta)} no saldo desta semana.`);
+      if(semRestantes>1) msg.push(`Ainda há ${semRestantes} semanas no mês. Considere adiar para a próxima.`);
+    } else if(pctUsado>0.85||porDiaRestante<orcDiario*0.5){
+      // Risco alto mesmo que caiba
+      msg.push(`🟠 Cabe no saldo, mas é arriscado para uma ${nomeDia}.`);
+      msg.push(`Gastar ${fmt(val)} agora usaria ${Math.round(pctUsado*100)}% da meta semanal — restariam apenas ${fmt(sobrariaTotal)} para os próximos ${diasRestantesSemana} dia(s), ou seja ${fmt(porDiaRestante)}/dia. Isso é pouco para o que ainda pode aparecer.`);
+      if(diasRestantesSemana>3) msg.push(`Com ${diasRestantesSemana} dias pela frente, recomendo adiar ou reduzir o valor.`);
+    } else if(pctVal>limiteAtencao){
+      // Atenção
+      msg.push(`🟡 Cabe, mas com atenção — é ${nomeDia} e a semana ainda tem ${diasRestantesSemana} dia(s).`);
+      msg.push(`${fmt(val)} representa ${Math.round(pctVal*100)}% da meta semanal de uma vez só. Sobraria ${fmt(sobrariaTotal)} (${fmt(porDiaRestante)}/dia).`);
+      msg.push(`Se não houver outros gastos previstos, ok. Mas se tiverem saídas, alimentação fora ou compras planejadas, segure.`);
+    } else if(pctVal>limiteConfortavel){
+      // Moderado
+      msg.push(`🟡 Razoável, mas considere o momento — ainda é ${nomeDia}.`);
+      msg.push(`${fmt(val)} usa ${Math.round(pctVal*100)}% da meta semanal. Sobraria ${fmt(sobrariaTotal)} para ${diasRestantesSemana} dia(s) — ${fmt(porDiaRestante)}/dia.`);
+      msg.push(`Se não tiverem gastos grandes previstos essa semana, pode ir em frente.`);
+    } else {
+      // Tranquilo
+      msg.push(`✅ Tranquilo! ${fmt(val)} é ${Math.round(pctVal*100)}% da meta semanal.`);
+      msg.push(`Sobrariam ${fmt(sobrariaTotal)} para os próximos ${diasRestantesSemana} dia(s) — ${fmt(porDiaRestante)}/dia. Situação confortável.`);
+    }
+
+    // Contexto do mês
     const restaMes=dispMes-mt;
-    if(restaMes>0&&val<=rem) msg.push(`No mês, vocês ainda têm ~${fmt(restaMes)} de margem considerando fixos e reserva.`);
+    if(val<=rem&&restaMes>0){
+      msg.push(`No mês: ${fmt(mt)} gastos de ${fmt(dispMes)} disponíveis. Margem mensal: ${fmt(restaMes)}.`);
+    }
 
     return msg.join('\n\n');
   }
