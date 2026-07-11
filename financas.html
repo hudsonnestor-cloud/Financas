@@ -126,6 +126,7 @@ nav button span{font-size:20px}
     </div>
     <div class="divider"></div>
     <div style="padding:16px 0 0">
+      <div id="overspend-banner" style="display:none;margin-bottom:8px"></div>
       <div class="label" style="padding:0 24px;margin-bottom:4px">lançamentos desta semana</div>
       <div id="expense-list"></div>
     </div>
@@ -381,31 +382,82 @@ function getAutoWeekly(){
   const totalFixed=getEffectiveFixed().reduce((s,f)=>s+f.effectiveAmount,0);
   return Math.max(0,(settings.income-totalFixed-settings.reserve)/4);
 }
+function getPrevWeekOverspend(){
+  // Calcula o estouro da semana anterior
+  const startDay=settings.week_start||0;
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const diff=(today.getDay()-startDay+7)%7;
+  // Início desta semana
+  const thisWeekStart=new Date(today);thisWeekStart.setDate(today.getDate()-diff);
+  // Início da semana passada
+  const prevWeekStart=new Date(thisWeekStart);prevWeekStart.setDate(thisWeekStart.getDate()-7);
+  const prevWeekEnd=new Date(thisWeekStart);prevWeekEnd.setMilliseconds(-1);
+  // Gastos da semana passada
+  const prevExp=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=prevWeekStart&&d<=prevWeekEnd;});
+  const prevTotal=prevExp.reduce((s,e)=>s+e.amount,0);
+  const baseWb=settings.weekly_mode==='manual'&&settings.weekly_manual>0?settings.weekly_manual:getAutoWeekly();
+  return Math.max(0,prevTotal-baseWb); // só retorna se houve estouro
+}
+
 function getWeeklyBudget(){
-  if(settings.weekly_mode==='manual'&&settings.weekly_manual>0)return settings.weekly_manual;
-  return getAutoWeekly();
+  const base=settings.weekly_mode==='manual'&&settings.weekly_manual>0?settings.weekly_manual:getAutoWeekly();
+  const overspend=getPrevWeekOverspend();
+  return Math.max(0,base-overspend);
+}
+
+function getBaseWeeklyBudget(){
+  return settings.weekly_mode==='manual'&&settings.weekly_manual>0?settings.weekly_manual:getAutoWeekly();
 }
 
 function render(){renderHome();if(currentTab==='fixed')renderFixed();if(currentTab==='config')renderConfig();}
 
 function renderHome(){
   const wb=getWeeklyBudget();
+  const base=getBaseWeeklyBudget();
+  const overspendAdj=getPrevWeekOverspend();
   const{start,end}=getWeekBounds();
   const tw=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=start&&d<=end;});
   const wt=tw.reduce((s,e)=>s+e.amount,0);
-  const rem=Math.max(0,wb-wt);
+  const rem=wb-wt; // pode ser negativo agora
   const over=wt>wb;
-  const pct=wb>0?Math.min(wt/wb,1):0;
+  const pct=wb>0?wt/wb:wt>0?1:0; // sem cap no 1
   const rc=pct<.6?'#2D6A4F':pct<.85?'#B7791F':'#C0392B';
   const rl=pct<.6?'tranquilo':pct<.85?'atenção':pct<1?'alerta':'estourou';
-  document.getElementById('home-remaining').textContent=fmt(rem);
-  document.getElementById('home-remaining').style.color=over?'#C0392B':'#1a1a1a';
+  // Número principal: mostra negativo se estourou
+  document.getElementById('home-remaining').textContent=rem>=0?fmt(rem):'− '+fmt(Math.abs(rem));
+  document.getElementById('home-remaining').style.color=over?'#C0392B':rem<base*0.2?'#B7791F':'#1a1a1a';
   document.getElementById('home-budget').textContent=fmt(wb);
   const re=document.getElementById('home-risk');re.textContent=rl;re.style.color=rc;
-  document.getElementById('home-mode-badge').textContent=settings.weekly_mode==='manual'?'manual':'';
-  const bar=document.getElementById('home-bar');bar.style.width=(pct*100)+'%';bar.style.background=rc;
+  // Badge: mostra ajuste se houver
+  let badge=settings.weekly_mode==='manual'?'manual':'';
+  if(overspendAdj>0) badge=(badge?badge+' · ':'')+'-'+fmt(overspendAdj)+' ajuste';
+  document.getElementById('home-mode-badge').textContent=badge;
+  const bar=document.getElementById('home-bar');
+  bar.style.width=Math.min(pct*100,100)+'%';bar.style.background=rc;
   document.getElementById('home-spent').textContent=fmt(wt)+' gasto';
   document.getElementById('home-pct').textContent=Math.round(pct*100)+'%';
+  // Banner estouro / ajuste
+  const bannerEl=document.getElementById('overspend-banner');
+  if(bannerEl){
+    if(over){
+      const excesso=wt-wb;
+      const proxMeta=base-excesso;
+      bannerEl.style.display='block';
+      bannerEl.innerHTML='<div style="background:#FFF0EE;border:1px solid #F5C6C0;border-radius:12px;padding:12px 16px;margin:0 24px 4px">'
+        +'<div style="font-size:12px;font-weight:700;color:#C0392B;letter-spacing:.5px;margin-bottom:4px">⚠️ META ESTOURADA</div>'
+        +'<div style="font-size:13px;color:#7a2020;line-height:1.5">Gastaram <strong>'+fmt(excesso)+'</strong> acima da meta esta semana.<br>'
+        +'Sugestão semana seguinte: <strong>'+(proxMeta>0?fmt(proxMeta):'R$ 0,00')+'</strong> (descontando o estouro).</div></div>';
+    } else if(overspendAdj>0){
+      bannerEl.style.display='block';
+      bannerEl.innerHTML='<div style="background:#FFF8EC;border:1px solid #F5E0B0;border-radius:12px;padding:12px 16px;margin:0 24px 4px">'
+        +'<div style="font-size:12px;font-weight:700;color:#B7791F;letter-spacing:.5px;margin-bottom:4px">📉 META AJUSTADA</div>'
+        +'<div style="font-size:13px;color:#7a5010;line-height:1.5">Meta reduzida em <strong>'+fmt(overspendAdj)+'</strong> pelo estouro da semana passada.<br>'
+        +'Meta base: '+fmt(base)+' → Esta semana: <strong>'+fmt(wb)+'</strong>.</div></div>';
+    } else {
+      bannerEl.style.display='none';
+    }
+  }
   const list=document.getElementById('expense-list');
   if(!tw.length){list.innerHTML='<div style="padding:16px 24px;color:var(--muted);font-size:14px">Nenhum gasto ainda esta semana.</div>';return;}
   list.innerHTML=tw.map((e,i)=>{
@@ -868,6 +920,31 @@ setInterval(async()=>{
   }catch{}
 },6000);
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+function buildSystemPrompt(){
+  const wb=getWeeklyBudget();
+  const base=getBaseWeeklyBudget();
+  const ovAdj=getPrevWeekOverspend();
+  const{start:ws,end:we}=getWeekBounds();
+  const{start:ms,end:me}=getMonthBounds();
+  const tw=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=ws&&d<=we;});
+  const wt=tw.reduce((s,e)=>s+e.amount,0);
+  const mt=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=ms&&d<=me;}).reduce((s,e)=>s+e.amount,0);
+  const ef=getEffectiveFixed();
+  const tf=ef.reduce((s,f)=>s+f.effectiveAmount,0);
+  const modeInfo=settings.weekly_mode==='manual'?'Meta manual: '+fmt(settings.weekly_manual):'Meta automática pela fórmula';
+  const overStr=wt>wb?' ESTOURADO em '+fmt(wt-wb):'';
+  const adjStr=ovAdj>0?' | Ajuste: -'+fmt(ovAdj)+' (estouro sem. passada)':'';
+  return 'Você é consultora financeira de um casal brasileiro. Responda em português, curto e direto (máx 3 parágrafos). Use emojis com moderação.\n\n'
+    +'SITUAÇÃO ATUAL:\n'
+    +'- Renda: '+fmt(settings.income)+' | Fixos: '+fmt(tf)+' | Reserva: '+fmt(settings.reserve)+'\n'
+    +'- Meta semanal base: '+fmt(base)+' ('+modeInfo+')'+adjStr+'\n'
+    +'- Meta semanal efetiva: '+fmt(wb)+'\n'
+    +'- Gasto esta semana: '+fmt(wt)+' ('+Math.round(wb>0?wt/wb*100:0)+'%)'+overStr+'\n'
+    +'- Gasto este mês: '+fmt(mt)+'\n'
+    +'- Semanas restantes: ~'+Math.max(1,4-Math.floor((new Date().getDate()-1)/7))+'\n\n'
+    +'Seja honesta e direta.';
+}
 
 loadAll();
 </script>
