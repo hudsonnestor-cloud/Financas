@@ -382,32 +382,31 @@ function getAutoWeekly(){
   const totalFixed=getEffectiveFixed().reduce((s,f)=>s+f.effectiveAmount,0);
   return Math.max(0,(settings.income-totalFixed-settings.reserve)/4);
 }
+function getBaseWeeklyBudget(){
+  // Meta base: fórmula ou manual, sem ajustes
+  return settings.weekly_mode==='manual'&&settings.weekly_manual>0?settings.weekly_manual:getAutoWeekly();
+}
+
 function getPrevWeekOverspend(){
-  // Calcula o estouro da semana anterior
+  // Quanto excedeu a meta BASE na semana passada
   const startDay=settings.week_start||0;
   const now=new Date();
   const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const diff=(today.getDay()-startDay+7)%7;
-  // Início desta semana
-  const thisWeekStart=new Date(today);thisWeekStart.setDate(today.getDate()-diff);
-  // Início da semana passada
+  const thisWeekStart=new Date(today);thisWeekStart.setDate(today.getDate()-diff);thisWeekStart.setHours(0,0,0,0);
   const prevWeekStart=new Date(thisWeekStart);prevWeekStart.setDate(thisWeekStart.getDate()-7);
   const prevWeekEnd=new Date(thisWeekStart);prevWeekEnd.setMilliseconds(-1);
-  // Gastos da semana passada
   const prevExp=expenses.filter(e=>{const d=toLocalDay(e.date);return d>=prevWeekStart&&d<=prevWeekEnd;});
   const prevTotal=prevExp.reduce((s,e)=>s+e.amount,0);
-  const baseWb=settings.weekly_mode==='manual'&&settings.weekly_manual>0?settings.weekly_manual:getAutoWeekly();
-  return Math.max(0,prevTotal-baseWb); // só retorna se houve estouro
+  const base=getBaseWeeklyBudget(); // sempre compara com a meta base
+  return Math.max(0,prevTotal-base);
 }
 
 function getWeeklyBudget(){
-  const base=settings.weekly_mode==='manual'&&settings.weekly_manual>0?settings.weekly_manual:getAutoWeekly();
+  // Meta efetiva desta semana = base - estouro da semana passada (mín 0)
+  const base=getBaseWeeklyBudget();
   const overspend=getPrevWeekOverspend();
   return Math.max(0,base-overspend);
-}
-
-function getBaseWeeklyBudget(){
-  return settings.weekly_mode==='manual'&&settings.weekly_manual>0?settings.weekly_manual:getAutoWeekly();
 }
 
 function render(){renderHome();if(currentTab==='fixed')renderFixed();if(currentTab==='config')renderConfig();}
@@ -424,12 +423,14 @@ function renderHome(){
   const pct=wb>0?wt/wb:wt>0?1:0; // sem cap no 1
   const rc=pct<.6?'#2D6A4F':pct<.85?'#B7791F':'#C0392B';
   const rl=pct<.6?'tranquilo':pct<.85?'atenção':pct<1?'alerta':'estourou';
-  // Número principal: mostra quanto sobra (positivo) ou quanto excedeu (negativo)
-  const excedente=wt-wb; // positivo = estourou
-  document.getElementById('home-remaining').textContent=over?'− '+fmt(excedente):fmt(rem);
-  document.getElementById('home-remaining').style.color=over?'#C0392B':rem<base*0.2?'#B7791F':'#1a1a1a';
-  document.getElementById('home-sublabel').textContent=over?'excedido da meta de':'restam de';
-  document.getElementById('home-budget').textContent=fmt(wb);
+  // Número principal: positivo = sobra da meta efetiva, negativo = excedeu a meta BASE
+  const excedenteDaBase=wt-base; // quanto passou da meta base (sem ajuste)
+  const excedenteDaMeta=wt-wb;   // quanto passou da meta efetiva (com ajuste)
+  const mostrarNeg=wt>base;      // só fica negativo se passou da meta BASE
+  document.getElementById('home-remaining').textContent=mostrarNeg?'− '+fmt(excedenteDaBase):fmt(rem);
+  document.getElementById('home-remaining').style.color=mostrarNeg?'#C0392B':wt>wb?'#B7791F':rem<base*0.2?'#B7791F':'#1a1a1a';
+  document.getElementById('home-sublabel').textContent=mostrarNeg?'excedido da meta de':'restam de';
+  document.getElementById('home-budget').textContent=fmt(base); // sempre mostra meta BASE
   const re=document.getElementById('home-risk');re.textContent=rl;re.style.color=rc;
   // Badge: mostra ajuste se houver
   let badge=settings.weekly_mode==='manual'?'manual':'';
@@ -442,16 +443,19 @@ function renderHome(){
   // Banner estouro / ajuste
   const bannerEl=document.getElementById('overspend-banner');
   if(bannerEl){
-    if(over){
-      const excesso=wt-wb;
-      const proxMeta=Math.max(0,base-excesso); // base - excedente, nunca negativo
+    if(wt>base){
+      // Só mostra banner se passou da meta BASE
+      const excessoBase=wt-base;
+      const proxMeta=Math.max(0,base-excessoBase);
       bannerEl.style.display='block';
       bannerEl.innerHTML='<div style="background:#FFF0EE;border:1px solid #F5C6C0;border-radius:12px;padding:12px 16px;margin:0 24px 4px">'
         +'<div style="font-size:12px;font-weight:700;color:#C0392B;letter-spacing:.5px;margin-bottom:4px">⚠️ META ESTOURADA</div>'
         +'<div style="font-size:13px;color:#7a2020;line-height:1.5">'
-        +'Meta desta semana: <strong>'+fmt(wb)+'</strong> · Excedente: <strong>'+fmt(excesso)+'</strong><br>'
-        +'Sugestão semana seguinte: <strong>'+fmt(proxMeta)+'</strong> (meta base '+fmt(base)+' − excedente '+fmt(excesso)+')</div></div>';
-    } else if(overspendAdj>0){
+        +'Meta: <strong>'+fmt(base)+'</strong> · Gasto: <strong>'+fmt(wt)+'</strong> · Excedente: <strong>'+fmt(excessoBase)+'</strong><br>'
+        +'Sugestão semana seguinte: <strong>'+(proxMeta>0?fmt(proxMeta):fmt(0))+'</strong>'
+        +(proxMeta<=0?' (excedente maior que a meta — semana zerada)':' ('+fmt(base)+' − '+fmt(excessoBase)+')')
+        +'</div></div>';
+    } else if(overspendAdj>0&&wt<=base){
       bannerEl.style.display='block';
       bannerEl.innerHTML='<div style="background:#FFF8EC;border:1px solid #F5E0B0;border-radius:12px;padding:12px 16px;margin:0 24px 4px">'
         +'<div style="font-size:12px;font-weight:700;color:#B7791F;letter-spacing:.5px;margin-bottom:4px">📉 META AJUSTADA</div>'
