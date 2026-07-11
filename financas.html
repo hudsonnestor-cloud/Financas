@@ -102,7 +102,7 @@ nav button span{font-size:20px}
     <div style="padding:16px 24px 20px">
       <div id="home-remaining" style="font-size:42px;font-weight:800;letter-spacing:-2px;line-height:1">R$ 0</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px">
-        restam de <span id="home-budget">R$ 0</span> · <span id="home-risk" style="font-weight:600"></span>
+        <span id="home-sublabel">restam de</span> <span id="home-budget">R$ 0</span> · <span id="home-risk" style="font-weight:600"></span>
         <span id="home-mode-badge" style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-left:4px;opacity:.6"></span>
       </div>
       <div class="bar-track"><div class="bar-fill" id="home-bar" style="width:0%"></div></div>
@@ -424,9 +424,11 @@ function renderHome(){
   const pct=wb>0?wt/wb:wt>0?1:0; // sem cap no 1
   const rc=pct<.6?'#2D6A4F':pct<.85?'#B7791F':'#C0392B';
   const rl=pct<.6?'tranquilo':pct<.85?'atenção':pct<1?'alerta':'estourou';
-  // Número principal: mostra negativo se estourou
-  document.getElementById('home-remaining').textContent=rem>=0?fmt(rem):'− '+fmt(Math.abs(rem));
+  // Número principal: mostra quanto sobra (positivo) ou quanto excedeu (negativo)
+  const excedente=wt-wb; // positivo = estourou
+  document.getElementById('home-remaining').textContent=over?'− '+fmt(excedente):fmt(rem);
   document.getElementById('home-remaining').style.color=over?'#C0392B':rem<base*0.2?'#B7791F':'#1a1a1a';
+  document.getElementById('home-sublabel').textContent=over?'excedido da meta de':'restam de';
   document.getElementById('home-budget').textContent=fmt(wb);
   const re=document.getElementById('home-risk');re.textContent=rl;re.style.color=rc;
   // Badge: mostra ajuste se houver
@@ -442,12 +444,13 @@ function renderHome(){
   if(bannerEl){
     if(over){
       const excesso=wt-wb;
-      const proxMeta=base-excesso;
+      const proxMeta=Math.max(0,base-excesso); // base - excedente, nunca negativo
       bannerEl.style.display='block';
       bannerEl.innerHTML='<div style="background:#FFF0EE;border:1px solid #F5C6C0;border-radius:12px;padding:12px 16px;margin:0 24px 4px">'
         +'<div style="font-size:12px;font-weight:700;color:#C0392B;letter-spacing:.5px;margin-bottom:4px">⚠️ META ESTOURADA</div>'
-        +'<div style="font-size:13px;color:#7a2020;line-height:1.5">Gastaram <strong>'+fmt(excesso)+'</strong> acima da meta esta semana.<br>'
-        +'Sugestão semana seguinte: <strong>'+(proxMeta>0?fmt(proxMeta):'R$ 0,00')+'</strong> (descontando o estouro).</div></div>';
+        +'<div style="font-size:13px;color:#7a2020;line-height:1.5">'
+        +'Meta desta semana: <strong>'+fmt(wb)+'</strong> · Excedente: <strong>'+fmt(excesso)+'</strong><br>'
+        +'Sugestão semana seguinte: <strong>'+fmt(proxMeta)+'</strong> (meta base '+fmt(base)+' − excedente '+fmt(excesso)+')</div></div>';
     } else if(overspendAdj>0){
       bannerEl.style.display='block';
       bannerEl.innerHTML='<div style="background:#FFF8EC;border:1px solid #F5E0B0;border-radius:12px;padding:12px 16px;margin:0 24px 4px">'
